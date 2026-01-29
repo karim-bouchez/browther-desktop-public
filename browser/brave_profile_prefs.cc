@@ -243,11 +243,6 @@ void OverrideDefaultPrefValues(user_prefs::PrefRegistrySyncable* registry) {
       base::Value(
           static_cast<int>(prefetch::NetworkPredictionOptions::kDisabled)));
 
-  // Disable cloud print
-  // Cloud Print: Don't allow this browser to act as Cloud Print server
-  registry->SetDefaultPrefValue(prefs::kCloudPrintProxyEnabled,
-                                base::Value(false));
-
   // Disable default webstore icons in topsites or apps.
   registry->SetDefaultPrefValue(policy::policy_prefs::kHideWebStoreIcon,
                                 base::Value(true));
@@ -597,6 +592,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
 #if defined(TOOLKIT_VIEWS)
   registry->RegisterBooleanPref(prefs::kPinShareMenuButton, true);
+  registry->RegisterBooleanPref(prefs::kPinPwaInstallButton, true);
 #endif  // defined(TOOLKIT_VIEWS)
 
   OverrideDefaultPrefValues(registry);

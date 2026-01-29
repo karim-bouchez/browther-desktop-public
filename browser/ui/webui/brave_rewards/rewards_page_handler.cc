@@ -21,6 +21,7 @@
 #include "brave/components/brave_adaptive_captcha/brave_adaptive_captcha_service.h"
 #include "brave/components/brave_ads/buildflags/buildflags.h"
 #include "brave/components/brave_ads/core/browser/service/ads_service.h"
+#include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
 #include "brave/components/brave_rewards/content/rewards_p3a.h"
 #include "brave/components/brave_rewards/content/rewards_service.h"
 #include "brave/components/brave_rewards/content/rewards_service_observer.h"
@@ -765,6 +766,15 @@ void RewardsPageHandler::RecordOfferView(RecordOfferViewCallback callback) {
 
 void RewardsPageHandler::RecordOfferClick(RecordOfferClickCallback callback) {
   p3a::RecordOfferClicks(prefs_, true);
+  std::move(callback).Run();
+}
+
+void RewardsPageHandler::RecordNewTabOnboardingClick(
+    RecordNewTabOnboardingClickCallback callback) {
+  if (!prefs_->GetBoolean(prefs::kEnabled)) {
+    rewards_service_->GetP3AConversionMonitor()->RecordPanelTrigger(
+        p3a::PanelTrigger::kNTP);
+  }
   std::move(callback).Run();
 }
 

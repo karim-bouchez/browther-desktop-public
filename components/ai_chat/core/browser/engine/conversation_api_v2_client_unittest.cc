@@ -278,20 +278,12 @@ class ConversationAPIV2ClientUnitTest : public testing::Test {
 
   // Returns a pair of system_language and selected_langauge
   // The system language is the OS locale.
-  // The selected language is the language the server side determined the
-  // conversation is in
-  std::pair<std::string, std::optional<std::string>> GetLanguage(
-      const base::Value::Dict& body) {
+  // The system language is the browser language
+  std::string GetSystemLanguage(const base::Value::Dict& body) {
     const std::string* system_language = body.FindString("system_language");
     // The system language should always be present
     EXPECT_TRUE(system_language != nullptr);
-
-    const std::string* selected_language = body.FindString("selected_language");
-    if (selected_language) {
-      return {*system_language, *selected_language};
-    } else {
-      return {*system_language, std::nullopt};
-    }
+    return *system_language;
   }
 
  protected:
@@ -521,7 +513,6 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_PremiumHeaders) {
   const brave_l10n::test::ScopedDefaultLocale scoped_default_locale(
       expected_system_language);
   std::string expected_completion_response = "premium response";
-  std::string expected_selected_language = "fr";
 
   MockAPIRequestHelper* mock_request_helper =
       client_->GetMockAPIRequestHelper();
@@ -560,11 +551,9 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_PremiumHeaders) {
         auto body_dict = base::test::ParseJsonDict(body);
         EXPECT_TRUE(!body_dict.empty());
 
-        // Verify body contains the language
-        auto [system_language, selected_language] = GetLanguage(body_dict);
+        // Verify body contains the system language
+        auto system_language = GetSystemLanguage(body_dict);
         EXPECT_EQ(system_language, expected_system_language);
-        EXPECT_TRUE(selected_language.has_value());
-        EXPECT_TRUE(selected_language.value().empty());
 
         // Currently server only expects we pass content_agent capability,
         // so it won't be passed for CHAT.
@@ -629,7 +618,7 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_PremiumHeaders) {
 
   // Begin request
   client_->PerformRequest(
-      std::move(messages), "" /* selected_language */, std::nullopt,
+      std::move(messages), std::nullopt,
       /* oai_tool_definitions */ std::nullopt, /* preferred_tool_name */
       mojom::ConversationCapability::CHAT,
       base::BindRepeating(&MockCallbacks::OnDataReceived,
@@ -656,7 +645,6 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_NonPremium) {
   const brave_l10n::test::ScopedDefaultLocale scoped_default_locale(
       expected_system_language);
   std::string expected_completion_response = "complete text";
-  std::string expected_selected_language = "fr";
   std::string expected_capability = "content_agent";
 
   MockAPIRequestHelper* mock_request_helper =
@@ -687,11 +675,9 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_NonPremium) {
         auto dict = base::test::ParseJsonDict(body);
         EXPECT_TRUE(!dict.empty());
 
-        // Verify body contains the language
-        auto [system_language, selected_language] = GetLanguage(dict);
+        // Verify body contains the system language
+        auto system_language = GetSystemLanguage(dict);
         EXPECT_EQ(system_language, expected_system_language);
-        EXPECT_TRUE(selected_language.has_value());
-        EXPECT_TRUE(selected_language.value().empty());
 
         // Verify body contains the brave_capability
         const std::string* capability = dict.FindString("brave_capability");
@@ -753,9 +739,8 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_NonPremium) {
 
   // Begin request
   client_->PerformRequest(
-      std::move(messages), "" /* selected_language */,
-      std::nullopt, /* oai_tool_definitions */
-      std::nullopt, /* preferred_tool_name */
+      std::move(messages), std::nullopt, /* oai_tool_definitions */
+      std::nullopt,                      /* preferred_tool_name */
       mojom::ConversationCapability::CONTENT_AGENT,
       base::BindRepeating(&MockCallbacks::OnDataReceived,
                           base::Unretained(&mock_callbacks)),
@@ -792,6 +777,7 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_WithToolUseResponse) {
         {
           // Send response with both content and tool calls
           auto chunk = base::test::ParseJsonDict(R"({
+            "model": "llama-3-8b-instruct",
             "choices": [{
               "delta": {
                 "content": "This is a test completion",
@@ -835,6 +821,7 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_WithToolUseResponse) {
         EXPECT_TRUE(result.event->is_completion_event());
         EXPECT_EQ(result.event->get_completion_event()->completion,
                   "This is a test completion");
+        EXPECT_EQ(result.model_key, "chat-basic");
       });
 
   EXPECT_CALL(mock_callbacks, OnDataReceived)
@@ -846,6 +833,7 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_WithToolUseResponse) {
                         mojom::ToolUseEvent::New("get_weather", "call_123",
                                                  "{\"location\":\"New York\"}",
                                                  std::nullopt, nullptr));
+        EXPECT_EQ(result.model_key, "chat-basic");
       });
 
   EXPECT_CALL(mock_callbacks, OnDataReceived)
@@ -858,6 +846,7 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_WithToolUseResponse) {
             mojom::ToolUseEvent::New("search_web", "call_456",
                                      "{\"query\":\"Hello, world!\"}",
                                      std::nullopt, nullptr));
+        EXPECT_EQ(result.model_key, "chat-basic");
       });
 
   EXPECT_CALL(mock_callbacks, OnCompleted(_))
@@ -869,9 +858,8 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_WithToolUseResponse) {
 
   // The payload of the request is not important for this test
   client_->PerformRequest(
-      std::move(messages), "" /* selected_language */,
-      std::nullopt, /* oai_tool_definitions */
-      std::nullopt, /* preferred_tool_name */
+      std::move(messages), std::nullopt, /* oai_tool_definitions */
+      std::nullopt,                      /* preferred_tool_name */
       mojom::ConversationCapability::CHAT,
       base::BindRepeating(&MockCallbacks::OnDataReceived,
                           base::Unretained(&mock_callbacks)),
@@ -881,6 +869,217 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_WithToolUseResponse) {
   run_loop.Run();
   testing::Mock::VerifyAndClearExpectations(client_.get());
   testing::Mock::VerifyAndClearExpectations(mock_request_helper);
+}
+
+TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_PermissionChallenge) {
+  // Tests that we correctly parse alignment_check from each tool call:
+  // - Populate PermissionChallenge when allowed is false
+  // - Don't populate PermissionChallenge when allowed is true
+  // - Handle unknown alignment_check schema (missing allowed property) by
+  //   ignoring the alignment_check
+  // - Ignore missing reasoning property and still provide PermissionChallenge
+  std::vector<OAIMessage> messages =
+      GetMockMessagesAndExpectedMessagesJson().first;
+  MockAPIRequestHelper* mock_request_helper =
+      client_->GetMockAPIRequestHelper();
+  testing::NiceMock<MockCallbacks> mock_callbacks;
+  base::RunLoop run_loop;
+
+  EXPECT_CALL(*mock_request_helper, RequestSSE)
+      .WillOnce(testing::WithArgs<4, 5>(
+          [&](DataReceivedCallback data_received_callback,
+              ResultCallback result_callback) {
+            auto chunk = base::test::ParseJsonDict(R"({
+              "choices": [{
+                "delta": {
+                  "content": "This is a test completion",
+                  "tool_calls": [
+                    {
+                      "id": "call_123",
+                      "type": "function",
+                      "function": {
+                        "name": "search_web",
+                        "arguments": "{\"query\":\"Hello, world!\"}"
+                      },
+                      "alignment_check": {
+                        "allowed": false,
+                        "reasoning": "Server determined this tool use is off"
+                      }
+                    },
+                    {
+                      "id": "call_456",
+                      "type": "function",
+                      "function": {
+                        "name": "get_weather",
+                        "arguments": "{\"location\":\"New York\"}"
+                      }
+                    },
+                    {
+                      "id": "call_789",
+                      "type": "function",
+                      "function": {
+                        "name": "read_file",
+                        "arguments": "{\"path\":\"/etc/passwd\"}"
+                      },
+                      "alignment_check": {
+                        "allowed": false,
+                        "reasoning": "This tool is also off-topic"
+                      }
+                    },
+                    {
+                      "id": "call_101",
+                      "type": "function",
+                      "function": {
+                        "name": "allowed_tool",
+                        "arguments": "{\"arg\":\"value\"}"
+                      },
+                      "alignment_check": {
+                        "allowed": true,
+                        "reasoning": "This is allowed"
+                      }
+                    },
+                    {
+                      "id": "call_202",
+                      "type": "function",
+                      "function": {
+                        "name": "missing_allowed_field",
+                        "arguments": "{}"
+                      },
+                      "alignment_check": {
+                        "reasoning": "Format unknown"
+                      }
+                    },
+                    {
+                      "id": "call_303",
+                      "type": "function",
+                      "function": {
+                        "name": "missing_reasoning",
+                        "arguments": "{}"
+                      },
+                      "alignment_check": {
+                        "allowed": false
+                      }
+                    }
+                  ]
+                }
+              }]
+            })");
+            data_received_callback.Run(base::ok(base::Value(std::move(chunk))));
+
+            std::move(result_callback)
+                .Run(api_request_helper::APIRequestResult(200, {}, {}, net::OK,
+                                                          GURL()));
+            run_loop.QuitWhenIdle();
+            return Ticket();
+          }));
+
+  // This test is focused on the correctness of the ToolUseEvent,
+  // we can leave verifying other events are also sent in another test.
+  EXPECT_CALL(mock_callbacks, OnDataReceived(_)).Times(testing::AnyNumber());
+
+  auto expected_tool_use_event_1 =
+      mojom::ConversationEntryEvent::NewToolUseEvent(mojom::ToolUseEvent::New(
+          "search_web", "call_123", "{\"query\":\"Hello, world!\"}",
+          std::nullopt,
+          mojom::PermissionChallenge::New(
+              "Server determined this tool use is off", std::nullopt)));
+  {
+    SCOPED_TRACE(
+        "Expected search_web (call_123) to have PermissionChallenge with "
+        "reasoning when alignment_check.allowed=false");
+    EXPECT_CALL(mock_callbacks,
+                OnDataReceived(testing::Field(
+                    "event", &EngineConsumer::GenerationResultData::event,
+                    MojomEq(expected_tool_use_event_1.get()))))
+        .Times(1);
+  }
+
+  auto expected_tool_use_event_2 =
+      mojom::ConversationEntryEvent::NewToolUseEvent(mojom::ToolUseEvent::New(
+          "get_weather", "call_456", "{\"location\":\"New York\"}",
+          std::nullopt, nullptr));
+  {
+    SCOPED_TRACE(
+        "Expected get_weather (call_456) to have no PermissionChallenge "
+        "when alignment_check is not present");
+    EXPECT_CALL(mock_callbacks,
+                OnDataReceived(testing::Field(
+                    "event", &EngineConsumer::GenerationResultData::event,
+                    MojomEq(expected_tool_use_event_2.get()))))
+        .Times(1);
+  }
+
+  auto expected_tool_use_event_3 =
+      mojom::ConversationEntryEvent::NewToolUseEvent(mojom::ToolUseEvent::New(
+          "read_file", "call_789", "{\"path\":\"/etc/passwd\"}", std::nullopt,
+          mojom::PermissionChallenge::New("This tool is also off-topic",
+                                          std::nullopt)));
+  {
+    SCOPED_TRACE(
+        "Expected read_file (call_789) to have PermissionChallenge with "
+        "reasoning when alignment_check.allowed=false");
+    EXPECT_CALL(mock_callbacks,
+                OnDataReceived(testing::Field(
+                    "event", &EngineConsumer::GenerationResultData::event,
+                    MojomEq(expected_tool_use_event_3.get()))))
+        .Times(1);
+  }
+
+  auto expected_tool_use_event_4 =
+      mojom::ConversationEntryEvent::NewToolUseEvent(mojom::ToolUseEvent::New(
+          "allowed_tool", "call_101", "{\"arg\":\"value\"}", std::nullopt,
+          nullptr));
+  {
+    SCOPED_TRACE(
+        "Expected allowed_tool (call_101) to have no PermissionChallenge "
+        "when alignment_check.allowed=true");
+    EXPECT_CALL(mock_callbacks,
+                OnDataReceived(testing::Field(
+                    "event", &EngineConsumer::GenerationResultData::event,
+                    MojomEq(expected_tool_use_event_4.get()))))
+        .Times(1);
+  }
+
+  auto expected_tool_use_event_5 =
+      mojom::ConversationEntryEvent::NewToolUseEvent(mojom::ToolUseEvent::New(
+          "missing_allowed_field", "call_202", "{}", std::nullopt, nullptr));
+  {
+    SCOPED_TRACE(
+        "Expected missing_allowed_field (call_202) to have no "
+        "PermissionChallenge when alignment_check.allowed field is missing");
+    EXPECT_CALL(mock_callbacks,
+                OnDataReceived(testing::Field(
+                    "event", &EngineConsumer::GenerationResultData::event,
+                    MojomEq(expected_tool_use_event_5.get()))))
+        .Times(1);
+  }
+
+  auto expected_tool_use_event_6 =
+      mojom::ConversationEntryEvent::NewToolUseEvent(mojom::ToolUseEvent::New(
+          "missing_reasoning", "call_303", "{}", std::nullopt,
+          mojom::PermissionChallenge::New(std::nullopt, std::nullopt)));
+  {
+    SCOPED_TRACE(
+        "Expected missing_reasoning (call_303) to have PermissionChallenge "
+        "without reasoning when alignment_check.allowed=false but reasoning "
+        "is missing");
+    EXPECT_CALL(mock_callbacks,
+                OnDataReceived(testing::Field(
+                    "event", &EngineConsumer::GenerationResultData::event,
+                    MojomEq(expected_tool_use_event_6.get()))))
+        .Times(1);
+  }
+
+  client_->PerformRequest(
+      std::move(messages), std::nullopt /* oai_tool_definitions */,
+      std::nullopt /* preferred_tool_name */,
+      mojom::ConversationCapability::CHAT,
+      base::BindRepeating(&MockCallbacks::OnDataReceived,
+                          base::Unretained(&mock_callbacks)),
+      base::BindOnce(&MockCallbacks::OnCompleted,
+                     base::Unretained(&mock_callbacks)));
+
+  run_loop.Run();
 }
 
 TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_NonStreaming) {
@@ -950,7 +1149,7 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_NonStreaming) {
       });
 
   client_->PerformRequest(
-      std::move(messages), "en", std::nullopt, std::nullopt,
+      std::move(messages), std::nullopt, std::nullopt,
       mojom::ConversationCapability::CHAT,
       base::NullCallback(),  // No data_received_callback (non-streaming)
       base::BindOnce(&MockCallbacks::OnCompleted,
@@ -1024,9 +1223,8 @@ TEST_F(ConversationAPIV2ClientUnitTest,
 
   // Begin request with model override
   client_->PerformRequest(
-      std::move(messages), "" /* selected_language */,
-      std::nullopt, /* oai_tool_definitions */
-      std::nullopt, /* preferred_tool_name */
+      std::move(messages), std::nullopt, /* oai_tool_definitions */
+      std::nullopt,                      /* preferred_tool_name */
       mojom::ConversationCapability::CHAT,
       base::BindRepeating(&MockCallbacks::OnDataReceived,
                           base::Unretained(&mock_callbacks)),
@@ -1100,14 +1298,13 @@ TEST_F(ConversationAPIV2ClientUnitTest,
       });
 
   // Begin request with model override but NULL data_received_callback
-  client_->PerformRequest(std::move(messages), "" /* selected_language */,
-                          std::nullopt, /* oai_tool_definitions */
-                          std::nullopt, /* preferred_tool_name */
-                          mojom::ConversationCapability::CHAT,
-                          base::NullCallback(),
-                          base::BindOnce(&MockCallbacks::OnCompleted,
-                                         base::Unretained(&mock_callbacks)),
-                          override_model_name);
+  client_->PerformRequest(
+      std::move(messages), std::nullopt, /* oai_tool_definitions */
+      std::nullopt,                      /* preferred_tool_name */
+      mojom::ConversationCapability::CHAT, base::NullCallback(),
+      base::BindOnce(&MockCallbacks::OnCompleted,
+                     base::Unretained(&mock_callbacks)),
+      override_model_name);
 
   run_loop.Run();
   testing::Mock::VerifyAndClearExpectations(client_.get());
@@ -1168,9 +1365,8 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_NEARVerification) {
       });
 
   client_->PerformRequest(
-      std::move(messages), "" /* selected_language */,
-      std::nullopt, /* oai_tool_definitions */
-      std::nullopt, /* preferred_tool_name */
+      std::move(messages), std::nullopt, /* oai_tool_definitions */
+      std::nullopt,                      /* preferred_tool_name */
       mojom::ConversationCapability::CONTENT_AGENT,
       base::BindRepeating(&MockCallbacks::OnDataReceived,
                           base::Unretained(&mock_callbacks)),
@@ -1203,9 +1399,8 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_FailWithEmptyMessages) {
 
   // Begin request with empty messages
   client_->PerformRequest(
-      std::move(messages), "" /* selected_language */,
-      std::nullopt, /* oai_tool_definitions */
-      std::nullopt, /* preferred_tool_name */
+      std::move(messages), std::nullopt, /* oai_tool_definitions */
+      std::nullopt,                      /* preferred_tool_name */
       mojom::ConversationCapability::CHAT,
       base::BindRepeating(&MockCallbacks::OnDataReceived,
                           base::Unretained(&mock_callbacks)),
@@ -1257,13 +1452,12 @@ TEST_F(ConversationAPIV2ClientUnitTest,
                   EngineConsumer::GenerationResultData(nullptr, std::nullopt));
       });
 
-  client_->PerformRequest(std::move(messages), "" /* selected_language */,
-                          std::nullopt, /* oai_tool_definitions */
-                          std::nullopt, /* preferred_tool_name */
-                          mojom::ConversationCapability::CHAT,
-                          base::NullCallback(),
-                          base::BindOnce(&MockCallbacks::OnCompleted,
-                                         base::Unretained(&mock_callbacks)));
+  client_->PerformRequest(
+      std::move(messages), std::nullopt, /* oai_tool_definitions */
+      std::nullopt,                      /* preferred_tool_name */
+      mojom::ConversationCapability::CHAT, base::NullCallback(),
+      base::BindOnce(&MockCallbacks::OnCompleted,
+                     base::Unretained(&mock_callbacks)));
 
   run_loop.Run();
   testing::Mock::VerifyAndClearExpectations(client_.get());
@@ -1306,13 +1500,12 @@ TEST_F(ConversationAPIV2ClientUnitTest, PerformRequest_ServerErrorResponse) {
         EXPECT_EQ(result.error(), mojom::APIError::RateLimitReached);
       });
 
-  client_->PerformRequest(std::move(messages), "" /* selected_language */,
-                          std::nullopt, /* oai_tool_definitions */
-                          std::nullopt, /* preferred_tool_name */
-                          mojom::ConversationCapability::CHAT,
-                          base::NullCallback(),
-                          base::BindOnce(&MockCallbacks::OnCompleted,
-                                         base::Unretained(&mock_callbacks)));
+  client_->PerformRequest(
+      std::move(messages), std::nullopt, /* oai_tool_definitions */
+      std::nullopt,                      /* preferred_tool_name */
+      mojom::ConversationCapability::CHAT, base::NullCallback(),
+      base::BindOnce(&MockCallbacks::OnCompleted,
+                     base::Unretained(&mock_callbacks)));
 
   run_loop.Run();
   testing::Mock::VerifyAndClearExpectations(client_.get());

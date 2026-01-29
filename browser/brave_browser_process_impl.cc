@@ -24,7 +24,6 @@
 #include "brave/browser/profiles/brave_profile_manager.h"
 #include "brave/common/brave_channel_info.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
-#include "brave/components/brave_ads/buildflags/buildflags.h"
 #include "brave/components/brave_component_updater/browser/brave_component_updater_delegate.h"
 #include "brave/components/brave_component_updater/browser/local_data_files_service.h"
 #include "brave/components/brave_origin/brave_origin_policy_manager.h"
@@ -59,6 +58,11 @@
 #include "content/public/browser/child_process_security_policy.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/browser/extensions/chrome_component_extension_resource_manager.h"
+#include "chrome/browser/extensions/chrome_extensions_browser_client.h"
+#endif
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
 #include "brave/components/ai_chat/core/common/features.h"
@@ -164,6 +168,19 @@ BraveBrowserProcessImpl::BraveBrowserProcessImpl(StartupData* startup_data)
 
 void BraveBrowserProcessImpl::Init() {
   BrowserProcessImpl::Init();
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  // ChromeComponentExtensionResourceManager's Data needs to be LazyInit'ed on
+  // the UI thread (due to pdf_extension_util::AddStrings calling
+  // g_browser_process->GetApplicationLocale() that has a DCHECK to that
+  // regard). However, it can't be done in the ExtensionBrowserClient::Init
+  // because ApplicationLocaleStorage hasn't been initialized yet and it's
+  // needed by pdf_extension_util::AddStrings. ApplicationLocaleStorage gets
+  // initialized at the very end of BrowserProcessImpl::Init.
+  std::ignore =
+      extensions_browser_client_->GetComponentExtensionResourceManager()
+          ->GetTemplateReplacementsForExtension("");
+#endif
 
 #if BUILDFLAG(ENABLE_TOR)
   pref_change_registrar_.Add(

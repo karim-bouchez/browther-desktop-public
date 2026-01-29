@@ -41,6 +41,7 @@ import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.rate.BraveRateDialogFragment;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.toolbar.bottom.BottomToolbarConfiguration;
+import org.chromium.chrome.browser.vpn.BraveVpnPolicy;
 import org.chromium.chrome.browser.vpn.settings.VpnCalloutPreference;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnPrefUtils;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnUtils;
@@ -147,6 +148,7 @@ public abstract class BraveMainPreferencesBase extends BravePreferenceFragment
         // Check if features are disabled by policy
         checkLeoPolicyAndUpdatePreference();
         checkNewsPolicyAndUpdatePreference();
+        checkVpnPolicyAndUpdatePreference();
 
         if (mNotificationClicked
                 && BraveNotificationWarningDialog.shouldShowNotificationWarningDialog(getActivity())
@@ -217,7 +219,6 @@ public abstract class BraveMainPreferencesBase extends BravePreferenceFragment
         removePreferenceIfPresent(MainSettings.PREF_SAFETY_HUB);
         removePreferenceIfPresent(MainSettings.PREF_ACCOUNT_AND_GOOGLE_SERVICES_SECTION);
         removePreferenceIfPresent(MainSettings.PREF_GOOGLE_SERVICES);
-        removePreferenceIfPresent(MainSettings.PREF_HOME_MODULES_CONFIG);
         removePreferenceIfPresent(PREF_LANGUAGES);
         removePreferenceIfPresent(PREF_BASICS_SECTION);
         // removePreferenceIfPresent(MainSettings.PREF_HOMEPAGE);
@@ -283,10 +284,12 @@ public abstract class BraveMainPreferencesBase extends BravePreferenceFragment
     private void rearrangePreferenceOrders() {
         int firstSectionOrder = 0;
 
-        if (getActivity() != null && !getActivity().isFinishing()
+        if (getActivity() != null
+                && !getActivity().isFinishing()
                 && BraveVpnPrefUtils.shouldShowCallout()
                 && !BraveVpnPrefUtils.isSubscriptionPurchase()
-                && BraveVpnUtils.isVpnFeatureSupported(getActivity())) {
+                && BraveVpnUtils.isVpnFeatureSupported(getActivity())
+                && !BraveVpnPolicy.isDisabledByPolicy(getProfile())) {
             if (mVpnCalloutPreference == null) {
                 mVpnCalloutPreference = new VpnCalloutPreference(getActivity());
             }
@@ -617,6 +620,14 @@ public abstract class BraveMainPreferencesBase extends BravePreferenceFragment
     private void checkNewsPolicyAndUpdatePreference() {
         if (BraveNewsPolicy.isDisabledByPolicy(getProfile())) {
             removePreferenceIfPresent(PREF_BRAVE_NEWS_V2);
+        }
+    }
+
+    /** Checks if Brave VPN is disabled by policy and removes the preference if so. */
+    private void checkVpnPolicyAndUpdatePreference() {
+        if (BraveVpnPolicy.isDisabledByPolicy(getProfile())) {
+            removePreferenceIfPresent(PREF_BRAVE_VPN);
+            removePreferenceIfPresent(PREF_BRAVE_VPN_CALLOUT);
         }
     }
 }

@@ -72,7 +72,6 @@ import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterProvider;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
@@ -131,7 +130,6 @@ import java.util.List;
 public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock private ActivityTabProvider mActivityTabProvider;
     @Mock private Tab mTab;
     @Mock private WebContents mWebContents;
     @Mock private NativePage mNativePage;
@@ -153,7 +151,6 @@ public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
     @Mock private SigninManager mSigninManager;
     @Mock private IdentityManager mIdentityManager;
     @Mock private IdentityServicesProvider mIdentityService;
-    @Mock private TabGroupModelFilterProvider mTabGroupModelFilterProvider;
     @Mock private TabGroupModelFilter mTabGroupModelFilter;
     @Mock private IncognitoUtils.Natives mIncognitoUtilsJniMock;
     @Mock public WebsitePreferenceBridge.Natives mWebsitePreferenceBridgeJniMock;
@@ -179,6 +176,7 @@ public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<ReadAloudController> mReadAloudControllerSupplier =
             new ObservableSupplierImpl<>();
+    private final ActivityTabProvider mActivityTabProvider = new ActivityTabProvider();
 
     private BraveTabbedAppMenuPropertiesDelegate mTabbedAppMenuPropertiesDelegate;
 
@@ -213,10 +211,7 @@ public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
         when(mTabModelSelector.getModel(true)).thenReturn(mIncognitoTabModel);
         when(mTabModel.isIncognito()).thenReturn(false);
         when(mIncognitoTabModel.isIncognito()).thenReturn(true);
-        when(mTabModelSelector.getTabGroupModelFilterProvider())
-                .thenReturn(mTabGroupModelFilterProvider);
-        when(mTabGroupModelFilterProvider.getCurrentTabGroupModelFilter())
-                .thenReturn(mTabGroupModelFilter);
+        when(mTabModelSelector.getCurrentTabGroupModelFilter()).thenReturn(mTabGroupModelFilter);
         when(mTabGroupModelFilter.getTabModel()).thenReturn(mTabModel);
         when(mTabModel.getProfile()).thenReturn(mProfile);
         ManagedBrowserUtilsJni.setInstanceForTesting(mManagedBrowserUtilsJniMock);
@@ -340,6 +335,7 @@ public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
             R.id.preferences_id,
             R.id.set_default_browser,
             R.id.brave_news_id,
+            R.id.request_brave_vpn_id,
             R.id.brave_customize_menu_id,
             R.id.exit_id,
         };
@@ -381,6 +377,7 @@ public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
         expectedItems.add(R.id.set_default_browser);
         expectedItems.add(R.id.preferences_id);
         expectedItems.add(R.id.brave_news_id);
+        expectedItems.add(R.id.request_brave_vpn_id);
         expectedItems.add(R.id.brave_customize_menu_id);
         expectedItems.add(R.id.exit_id);
 
@@ -410,11 +407,15 @@ public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
         // Rewards: DISABLED_BY_POLICY = true means disabled
         when(mPrefService.isManagedPreference(BravePref.DISABLED_BY_POLICY)).thenReturn(true);
         when(mPrefService.getBoolean(BravePref.DISABLED_BY_POLICY)).thenReturn(true);
+        // VPN: MANAGED_BRAVE_VPN_DISABLED = true means disabled
+        when(mPrefService.isManagedPreference(BravePref.MANAGED_BRAVE_VPN_DISABLED))
+                .thenReturn(true);
+        when(mPrefService.getBoolean(BravePref.MANAGED_BRAVE_VPN_DISABLED)).thenReturn(true);
 
         assertEquals(MenuGroup.PAGE_MENU, mTabbedAppMenuPropertiesDelegate.getMenuGroup());
         MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
 
-        // brave_news_id, brave_leo_id, brave_rewards_id should NOT be in the menu
+        // Policy-disabled items should NOT be in the menu
         Integer[] expectedItems = {
             R.id.new_tab_menu_id,
             R.id.new_incognito_tab_menu_id,
@@ -431,6 +432,7 @@ public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
             R.id.preferences_id,
             R.id.set_default_browser,
             // R.id.brave_news_id is NOT included - disabled by policy
+            // R.id.request_brave_vpn_id is NOT included - disabled by policy
             R.id.brave_customize_menu_id,
             R.id.exit_id,
         };
@@ -438,7 +440,7 @@ public class BraveTabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     private void setUpMocksForPageMenu() {
-        when(mActivityTabProvider.get()).thenReturn(mTab);
+        mActivityTabProvider.setForTesting(mTab);
         when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(false);
         doReturn(false)
                 .when(mTabbedAppMenuPropertiesDelegate)

@@ -130,18 +130,17 @@ BraveBrowserCommandController::BraveBrowserCommandController(
 
 BraveBrowserCommandController::~BraveBrowserCommandController() = default;
 
-void BraveBrowserCommandController::TabChangedAt(content::WebContents* contents,
-                                                 int index,
-                                                 TabChangeType type) {
+void BraveBrowserCommandController::OnTabChangedAt(tabs::TabInterface* tab,
+                                                   int index,
+                                                   TabChangeType change_type) {
   UpdateCommandEnabled(IDC_CLOSE_DUPLICATE_TABS,
                        brave::HasDuplicateTabs(&*browser_));
   UpdateCommandsForTabs();
   UpdateCommandsForSend();
 }
 
-void BraveBrowserCommandController::TabPinnedStateChanged(
-    TabStripModel* tab_strip_model,
-    content::WebContents* contents,
+void BraveBrowserCommandController::OnTabPinnedStateChanged(
+    tabs::TabInterface* tab,
     int index) {
   UpdateCommandsForPin();
 }
@@ -357,6 +356,8 @@ void BraveBrowserCommandController::InitBraveCommandState() {
     UpdateCommandEnabled(IDC_READING_LIST_MENU_ADD_TAB, true);
     UpdateCommandEnabled(IDC_READING_LIST_MENU_SHOW_UI, true);
   }
+
+  UpdateCommandEnabled(IDC_FORCE_PASTE, true);
 }
 
 void BraveBrowserCommandController::UpdateCommandForBraveRewards() {
@@ -771,6 +772,10 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
     case IDC_SWAP_SPLIT_VIEW: {
       CHECK(base::FeatureList::IsEnabled(features::kSideBySide));
       brave::SwapTabsInSplitWithSideBySide(base::to_address(browser_));
+      break;
+    }
+    case IDC_FORCE_PASTE: {
+      brave::ForcePasteInBrowser(base::to_address(browser_));
       break;
     }
     default:
