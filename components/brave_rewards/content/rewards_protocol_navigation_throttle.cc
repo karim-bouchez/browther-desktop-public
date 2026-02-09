@@ -128,8 +128,11 @@ void MaybeLoadRewardsURL(const GURL& redirect_url, WebContents* web_contents) {
   [[clang::no_destroy]] static const auto kAllowedReferrerUrls{[] {
     std::map<std::string, std::vector<GURL>> allowed_urls{
         {"bitflyer",
-         {GURL(BUILDFLAG(BITFLYER_PRODUCTION_URL)),
-          GURL(BUILDFLAG(BITFLYER_SANDBOX_URL))}},
+         {
+             GURL(BUILDFLAG(BITFLYER_PRODUCTION_URL)),
+             GURL(BUILDFLAG(BITFLYER_SANDBOX_URL)),
+             GURL(brave_domains::kGate3URL),
+         }},
         {"gemini",
          {
              GURL(BUILDFLAG(GEMINI_PRODUCTION_OAUTH_URL)),
