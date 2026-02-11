@@ -100,7 +100,6 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
     private boolean mNoPasswords;
     private boolean mNoPasswordExceptions;
 
-    private /*@Nullable*/ MenuItem mHelpItem;
     private /*@Nullable*/ MenuItem mSearchItem;
 
     private @Nullable String mSearchQuery;
@@ -320,7 +319,6 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
         menu.findItem(R.id.export_passwords).setVisible(false);
         mSearchItem = menu.findItem(R.id.menu_id_search);
         mSearchItem.setVisible(true);
-        mHelpItem = menu.findItem(R.id.menu_id_targeted_help);
         SearchUtils.initializeSearchView(
                 mSearchItem,
                 mSearchQuery,
@@ -342,20 +340,11 @@ public class PasswordSettings extends ChromeBaseSettingsFragment
             filterPasswords(null);
             return true;
         }
-        if (id == R.id.menu_id_targeted_help) {
-            getHelpAndFeedbackLauncher()
-                    .show(getActivity(), getString(R.string.help_context_passwords), null);
-            return true;
-        }
         return super.onOptionsItemSelected(item);
     }
 
     private void filterPasswords(@Nullable String query) {
         mSearchQuery = query;
-        mHelpItem.setShowAsAction(
-                mSearchQuery == null
-                        ? MenuItem.SHOW_AS_ACTION_IF_ROOM
-                        : MenuItem.SHOW_AS_ACTION_NEVER);
         rebuildPasswordLists();
     }
 
