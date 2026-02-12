@@ -4,6 +4,7 @@
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import("//build/config/android/rules.gni")
+import("//brave/browser/password_manager/android/java_sources.gni")
 
 source_set("unit_tests") {
   testonly = true
