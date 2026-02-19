@@ -554,12 +554,13 @@ enum SwapProvider {
   kAuto,
   kNearIntents,
   kSquid,
+  kJupiter,
 
   // Providers not supported by Gate3
   kLiFi,
   kZeroEx,
-  kJupiter,
   kCowSwap,
+  kJupiterLegacy,  // Direct Jupiter API (legacy, for iOS/Android)
 };
 
 struct SwapQuoteParams {
@@ -626,11 +627,11 @@ struct Gate3SwapTool {
 };
 
 struct Gate3SwapStepToken {
-  string coin;
+  CoinType coin;
   string chain_id;
   string contract_address;
   string symbol;
-  string decimals;
+  int32 decimals;
   string logo;
 };
 
@@ -640,6 +641,7 @@ struct Gate3SwapRouteStep {
   Gate3SwapStepToken destination_token;
   string destination_amount;
   Gate3SwapTool tool;
+  string percent;
 };
 
 struct Gate3SwapEvmTransactionParams {
