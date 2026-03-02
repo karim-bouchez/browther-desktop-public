@@ -173,34 +173,36 @@ export default function AssistantResponse(props: AssistantResponseProps) {
 
   return (
     <AssistantResponseContextProvider events={props.events}>
-      {sourcesEvent?.richResults
-        .filter((r) => r)
-        .map((r) => (
-          <RichSearchWidget
-            key={r}
-            jsonData={r}
+      <div className={styles.assistantResponse}>
+        {sourcesEvent?.richResults
+          .filter((r) => r)
+          .map((r) => (
+            <RichSearchWidget
+              key={r}
+              jsonData={r}
+            />
+          ))}
+        {props.events?.map((event, i) => (
+          <AssistantEvent
+            key={i}
+            event={event}
+            hasCompletionStarted={hasCompletionStarted}
+            isEntryInProgress={props.isEntryInProgress}
+            isEntryInteractivityAllowed={props.isEntryInteractivityAllowed}
+            allowedLinks={props.allowedLinks}
+            isLeoModel={props.isLeoModel}
           />
         ))}
-      {props.events?.map((event, i) => (
-        <AssistantEvent
-          key={i}
-          event={event}
-          hasCompletionStarted={hasCompletionStarted}
-          isEntryInProgress={props.isEntryInProgress}
-          isEntryInteractivityAllowed={props.isEntryInteractivityAllowed}
-          allowedLinks={props.allowedLinks}
-          isLeoModel={props.isLeoModel}
-        />
-      ))}
 
-      {!props.isEntryInProgress && (
-        <>
-          {sourcesEvent && <WebSourcesEvent sources={sourcesEvent.sources} />}
-          {searchQueriesEvent && (
-            <SearchSummary searchQueries={searchQueriesEvent.searchQueries} />
-          )}
-        </>
-      )}
+        {!props.isEntryInProgress && (
+          <>
+            {sourcesEvent && <WebSourcesEvent sources={sourcesEvent.sources} />}
+            {searchQueriesEvent && (
+              <SearchSummary searchQueries={searchQueriesEvent.searchQueries} />
+            )}
+          </>
+        )}
+      </div>
     </AssistantResponseContextProvider>
   )
 }
