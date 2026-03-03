@@ -86,6 +86,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.shields.BraveShieldsHandler;
 import org.chromium.chrome.browser.shields.BraveShieldsMenuObserver;
 import org.chromium.chrome.browser.shields.BraveShieldsUtils;
+import org.chromium.chrome.browser.shields.BraveUnifiedPanelHandler;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
@@ -173,6 +174,7 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
     private FrameLayout mRewardsLayout;
     private FrameLayout mYouTubePipLayout;
     private BraveShieldsHandler mBraveShieldsHandler;
+    private BraveUnifiedPanelHandler mUnifiedPanelHandler;
 
     // TabModelSelectorTabObserver setups observer at the ctor
     @SuppressWarnings("UnusedVariable")
@@ -322,6 +324,7 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
         }
 
         mBraveShieldsHandler = new BraveShieldsHandler(getContext());
+        mUnifiedPanelHandler = new BraveUnifiedPanelHandler(getContext());
         mBraveShieldsHandler.addObserver(
                 new BraveShieldsMenuObserver() {
                     @Override
@@ -559,8 +562,8 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
 
                             if (mBraveShieldsButton != null
                                     && mBraveShieldsButton.isShown()
-                                    && mBraveShieldsHandler != null
-                                    && !mBraveShieldsHandler.isShowing()) {
+                                    && mUnifiedPanelHandler != null
+                                    && !mUnifiedPanelHandler.isShowing()) {
                                 checkForTooltip(tab);
                             }
                         }
@@ -1042,8 +1045,8 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
     }
 
     public void reopenShieldsPanel() {
-        if (mBraveShieldsHandler != null && mBraveShieldsHandler.isShowing()) {
-            mBraveShieldsHandler.hideBraveShieldsMenu();
+        if (mUnifiedPanelHandler != null && mUnifiedPanelHandler.isShowing()) {
+            mUnifiedPanelHandler.hide();
             showShieldsMenu(mBraveShieldsButton);
         }
     }
@@ -1259,16 +1262,17 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
         }
         try {
             URL url = new URL(currentTab.getUrl().getSpec());
-            // Don't show shields popup if protocol is not valid for shields.
             if (!isValidProtocolForShields(url.getProtocol())) {
                 return;
             }
-            mBraveShieldsHandler.show(mBraveShieldsButton, currentTab);
+            mUnifiedPanelHandler.show(mBraveShieldsButton, currentTab, mBraveShieldsHandler);
         } catch (Exception e) {
-            // Do nothing if url is invalid.
-            // Just return w/o showing shields popup.
             return;
         }
+    }
+
+    public BraveShieldsHandler getBraveShieldsHandler() {
+        return mBraveShieldsHandler;
     }
 
     @Override
