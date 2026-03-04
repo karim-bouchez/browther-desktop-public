@@ -52,6 +52,7 @@ import { useExtractedQuery } from '../filter_menu/query'
 import TabsMenu from '../filter_menu/attachments_menu'
 import { stringifyContent } from '../input_box/editable_content'
 import { useScrollToBottom } from './useScrollToBottom'
+import { useScrollSpacer } from './useScrollSpacer'
 
 const SUGGESTION_STATUS_SHOW_BUTTON = new Set<Mojom.SuggestionGenerationStatus>(
   [
@@ -137,6 +138,13 @@ function Main() {
   const scrollElement = React.useRef<HTMLDivElement | null>(null)
   const { scrollToBottomContinuously, hasScrollableContent } =
     useScrollToBottom(scrollElement, conversationContentElement)
+
+  const { spacerHeight, submitInputTextToAPI } = useScrollSpacer(
+    scrollElement,
+    conversationContext.conversationUuid,
+    conversationContext.submitInputTextToAPI,
+    aiChatContext.api.useChildHeightChanged,
+  )
 
   // Reset scroll and content-ready state when switching conversations
   // so the new conversation starts fresh at the top. useLayoutEffect
@@ -353,6 +361,8 @@ function Main() {
                 )}
               </div>
 
+              {spacerHeight > 0 && <div style={{ minHeight: spacerHeight }} />}
+
               {conversationContext.isFeedbackFormVisible && (
                 <div
                   className={classnames([
@@ -484,7 +494,11 @@ function Main() {
         <TabsMenu />
         <InputBox
           conversationStarted={hasConversationStarted}
-          context={{ ...conversationContext, ...aiChatContext }}
+          context={{
+            ...conversationContext,
+            ...aiChatContext,
+            submitInputTextToAPI,
+          }}
           maybeShowSoftKeyboard={maybeShowSoftKeyboard}
         />
       </div>
