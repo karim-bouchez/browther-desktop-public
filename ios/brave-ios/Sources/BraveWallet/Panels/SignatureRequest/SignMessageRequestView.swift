@@ -25,7 +25,7 @@ struct SignMessageRequestView: View {
   var nextTapped: () -> Void
   var action: (_ approved: Bool) -> Void
 
-  @State private var showWarning: Bool = false
+  @State private var isWarningShown: Bool = false
   @Environment(\.sizeCategory) private var sizeCategory
   @ScaledMetric private var blockieSize = 54
   private let maxBlockieSize: CGFloat = 108
@@ -85,7 +85,7 @@ struct SignMessageRequestView: View {
         }
         .padding(.vertical, 32)
 
-        if showWarning {
+        if isWarningShown {
           SignMessageWarningView()
             .padding(.vertical, 12)
             .padding(.horizontal, 20)
@@ -127,7 +127,7 @@ struct SignMessageRequestView: View {
     }
     .navigationTitle(Strings.Wallet.signatureRequestTitle)
     .onAppear {
-      showWarning =
+      isWarningShown =
         (request.signData.cardanoSignData != nil)
         || request.signData.ethSignTypedData?.primaryType == "Permit"
     }
@@ -148,13 +148,12 @@ struct SignMessageRequestView: View {
 
   /// Cancel and Sign buttons
   @ViewBuilder private var buttons: some View {
-    if showWarning {
+    if isWarningShown {
       cancelButton
       Button {  // Continue
-        showWarning = false
+        isWarningShown = false
       } label: {
         Text(Strings.Wallet.continueButtonTitle)
-          .imageScale(.large)
       }
       .buttonStyle(BraveFilledButtonStyle(size: .large))
     } else {

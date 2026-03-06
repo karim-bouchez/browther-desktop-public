@@ -316,7 +316,6 @@ struct SignTransactionView: View {
         showWarning = false
       } label: {
         Text(Strings.Wallet.continueButtonTitle)
-          .imageScale(.large)
       }
       .buttonStyle(BraveFilledButtonStyle(size: .large))
       .disabled(txIndex != 0)
