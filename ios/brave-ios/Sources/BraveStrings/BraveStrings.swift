@@ -9468,5 +9468,13 @@ extension Strings {
         value: "Enter Password",
         comment: "Placeholder for the password field when adding or editing a login"
       )
+    public static let managePasswordDetailsRevealPassword =
+      NSLocalizedString(
+        "autofill.managePasswords.passwordDetail.revealPassword",
+        tableName: "BraveShared",
+        bundle: .module,
+        value: "Reveal",
+        comment: "Reveal password label"
+      )
   }
 }
