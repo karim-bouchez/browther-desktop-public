@@ -4,12 +4,16 @@
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #include "base/test/run_until.h"
+#include "brave/browser/containers/containers_service_factory.h"
 #include "brave/browser/ui/browser_commands.h"
 #include "brave/browser/ui/views/tabs/brave_tab.h"
 #include "brave/components/containers/content/browser/storage_partition_utils.h"
+#include "brave/components/containers/core/browser/containers_service.h"
+#include "brave/components/containers/core/browser/prefs.h"
 #include "brave/components/containers/core/common/features.h"
 #include "brave/components/containers/core/mojom/containers.mojom.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -23,6 +27,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/sessions/core/tab_restore_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -36,13 +41,21 @@
 #include "services/network/public/cpp/network_switches.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/skia/include/core/SkColor.h"
-#include "ui/views/test/views_test_utils.h"
 #include "ui/views/view.h"
 #include "url/gurl.h"
 
 namespace containers {
 
 constexpr char kTestContainerId[] = "test-container-id";
+
+namespace {
+
+constexpr SkColor kContainerRed = SkColorSetRGB(0xB7, 0x4D, 0x49);
+constexpr SkColor kContainerYellow = SkColorSetRGB(0x8E, 0x67, 0x02);
+constexpr SkColor kContainerGreen = SkColorSetRGB(0x1F, 0x7E, 0x48);
+constexpr SkColor kContainerBlue = SkColorSetRGB(0x36, 0x6E, 0xB8);
+
+}  // namespace
 
 class ContainersBrowserTest : public InProcessBrowserTest {
  public:
@@ -221,6 +234,17 @@ class ContainersBrowserTest : public InProcessBrowserTest {
   }
 
  protected:
+  mojom::ContainerPtr MakeContainer(const std::string& id = kTestContainerId,
+                                    const std::string& name = "Test Container",
+                                    mojom::Icon icon = mojom::Icon::kPersonal,
+                                    SkColor color = kContainerBlue) {
+    return mojom::Container::New(id, name, icon, color);
+  }
+
+  void SetProfileContainers(std::vector<mojom::ContainerPtr> containers) {
+    SetContainersToPrefs(containers, *browser()->profile()->GetPrefs());
+  }
+
   base::test::ScopedFeatureList feature_list_;
   net::EmbeddedTestServer https_server_;
 };
@@ -660,7 +684,7 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest, OpenUrlInContainer) {
   container->id = "test-container";
   container->name = "Test Container";
   container->icon = containers::mojom::Icon::kWork;
-  container->background_color = SK_ColorBLUE;
+  container->background_color = kContainerBlue;
 
   brave::OpenUrlInContainer(browser(), url, container);
 
@@ -736,7 +760,7 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest, OpenTabUrlInContainer) {
   container->id = "test-container-2";
   container->name = "Test Container 2";
   container->icon = containers::mojom::Icon::kPersonal;
-  container->background_color = SK_ColorRED;
+  container->background_color = kContainerRed;
 
   brave::OpenTabUrlInContainer(browser(), tab_handle, container);
 
@@ -816,14 +840,14 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
   container_a->id = "container-a";
   container_a->name = "Container A";
   container_a->icon = containers::mojom::Icon::kWork;
-  container_a->background_color = SK_ColorBLUE;
+  container_a->background_color = kContainerBlue;
 
   // Create second container
   auto container_b = containers::mojom::Container::New();
   container_b->id = "container-b";
   container_b->name = "Container B";
   container_b->icon = containers::mojom::Icon::kShopping;
-  container_b->background_color = SK_ColorGREEN;
+  container_b->background_color = kContainerGreen;
 
   brave::OpenUrlInContainer(browser(), url, container_a);
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
@@ -898,7 +922,7 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
   container->id = "shared-container";
   container->name = "Shared Container";
   container->icon = containers::mojom::Icon::kSocial;
-  container->background_color = SK_ColorYELLOW;
+  container->background_color = kContainerYellow;
 
   brave::OpenUrlInContainer(browser(), url, container);
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
@@ -958,7 +982,7 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest, ShouldShowTabAccent) {
   container->id = "shared-container";
   container->name = "Shared Container";
   container->icon = containers::mojom::Icon::kSocial;
-  container->background_color = SK_ColorYELLOW;
+  container->background_color = kContainerYellow;
 
   brave::OpenUrlInContainer(browser(), url, container);
   EXPECT_EQ(2, tab_strip_model->count());
@@ -1075,7 +1099,7 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
   container->id = "test-container";
   container->name = "Test Container";
   container->icon = containers::mojom::Icon::kSocial;
-  container->background_color = SK_ColorYELLOW;
+  container->background_color = kContainerYellow;
 
   brave::OpenUrlInContainer(browser(), url, container);
   EXPECT_EQ(2, tab_strip_model->count());
@@ -1455,6 +1479,68 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest, MixedTabsPersistence) {
                 content::EvalJs(tab, GetLocalStorageJS("default2")));
     }
   }
+}
+
+IN_PROC_BROWSER_TEST_F(
+    ContainersBrowserTest,
+    RemovedContainerKeepsCachedMetadataAndCleansStorageAfterRestoreEntriesDrop) {
+  const GURL url("https://a.test/simple.html");
+  auto container = MakeContainer(kTestContainerId, "Shopping",
+                                 mojom::Icon::kShopping, kContainerBlue);
+  std::vector<mojom::ContainerPtr> containers;
+  containers.push_back(container.Clone());
+  SetProfileContainers(std::move(containers));
+
+  brave::OpenUrlInContainer(browser(), url, container);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+
+  content::WebContents* container_tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(container_tab);
+  ASSERT_TRUE(content::WaitForLoadStop(container_tab));
+  EXPECT_TRUE(
+      content::ExecJs(container_tab, SetIndexedDBJS("cleanup", "value")));
+
+  SetProfileContainers({});
+
+  auto* service = ContainersServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(service);
+  auto cached_container = service->GetContainerById(kTestContainerId);
+  ASSERT_TRUE(cached_container);
+  EXPECT_EQ(cached_container->name, "Shopping");
+  EXPECT_EQ(cached_container->icon, mojom::Icon::kShopping);
+  EXPECT_EQ(cached_container->background_color, kContainerBlue);
+
+  chrome::CloseTab(browser());
+  ASSERT_EQ(1, browser()->tab_strip_model()->count());
+
+  EXPECT_TRUE(service->GetContainerById(kTestContainerId));
+
+  auto* tab_restore_service =
+      TabRestoreServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(tab_restore_service);
+  tab_restore_service->ClearEntries();
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !service->GetContainerById(kTestContainerId); }));
+  EXPECT_FALSE(service->GetContainerById(kTestContainerId));
+
+  brave::OpenUrlInContainer(browser(), url, container);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+
+  content::WebContents* reopened_tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(reopened_tab);
+  ASSERT_TRUE(content::WaitForLoadStop(reopened_tab));
+
+  content::EvalJsResult cookie_result =
+      content::EvalJs(reopened_tab, GetCookiesJS());
+  EXPECT_TRUE(cookie_result.ExtractString().find("cleanup") ==
+              std::string::npos);
+  EXPECT_EQ(base::Value(),
+            content::EvalJs(reopened_tab, GetLocalStorageJS("cleanup")));
+  EXPECT_EQ(base::Value(),
+            content::EvalJs(reopened_tab, GetIndexedDBJS("cleanup")));
 }
 
 // Test suite to verify behavior when containers feature is disabled after

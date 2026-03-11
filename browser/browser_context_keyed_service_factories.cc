@@ -37,6 +37,7 @@
 #include "brave/components/brave_vpn/common/buildflags/buildflags.h"
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/commander/common/buildflags/buildflags.h"
+#include "brave/components/containers/buildflags/buildflags.h"
 #include "brave/components/email_aliases/features.h"
 #include "brave/components/local_ai/core/features.h"
 #include "brave/components/playlist/core/common/features.h"
@@ -124,6 +125,10 @@
 #include "brave/browser/psst/psst_settings_service_factory.h"
 #endif
 
+#if BUILDFLAG(ENABLE_CONTAINERS)
+#include "brave/browser/containers/containers_service_factory.h"
+#endif
+
 namespace brave {
 
 void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
@@ -203,6 +208,10 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
 #endif
 
   BraveSyncAlertsServiceFactory::GetInstance();
+
+#if BUILDFLAG(ENABLE_CONTAINERS)
+  ContainersServiceFactory::GetInstance();
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(tabs::kBraveSharedPinnedTabs)) {

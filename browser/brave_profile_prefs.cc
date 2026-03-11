@@ -164,10 +164,6 @@ using extensions::FeatureSwitch;
 #include "brave/components/psst/common/pref_names.h"
 #endif
 
-#if BUILDFLAG(ENABLE_CONTAINERS)
-#include "brave/components/containers/core/browser/prefs.h"
-#endif
-
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
 #include "brave/components/brave_wallet/browser/pref_names.h"
 #endif
@@ -588,10 +584,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
 #if BUILDFLAG(ENABLE_WEB_DISCOVERY_NATIVE)
   web_discovery::WebDiscoveryService::RegisterProfilePrefs(registry);
-#endif
-
-#if BUILDFLAG(ENABLE_CONTAINERS)
-  containers::RegisterProfilePrefs(registry);
 #endif
 
   email_aliases::EmailAliasesService::RegisterProfilePrefs(registry);

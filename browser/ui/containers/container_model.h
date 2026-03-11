@@ -7,14 +7,15 @@
 #define BRAVE_BROWSER_UI_CONTAINERS_CONTAINER_MODEL_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "brave/components/containers/core/mojom/containers.mojom.h"
 #include "ui/base/models/image_model.h"
 
-class PrefService;
-
 namespace containers {
+
+class ContainersService;
 
 // A model for view that represents a container in the UI.
 class ContainerModel {
@@ -50,9 +51,15 @@ class ContainerModel {
 };
 
 // Builds ContainerModels from prefs; shared by menu model, tab strip, etc.
-std::vector<ContainerModel> GetContainerModelsFromPrefs(
-    const PrefService& prefs,
-    float scale_factor);
+std::vector<ContainerModel> GetContainerModels(const ContainersService& service,
+                                               float scale_factor);
+
+// Resolves a runtime container model using synced prefs first and then the
+// local used-containers cache. Falls back to an unknown model when the
+// container is not known locally anymore.
+ContainerModel GetRuntimeContainerModel(const ContainersService& service,
+                                        std::string_view id,
+                                        float scale_factor);
 
 }  // namespace containers
 

@@ -127,7 +127,9 @@
 #endif
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
+#include "brave/browser/containers/containers_service_factory.h"
 #include "brave/components/containers/content/browser/storage_partition_utils.h"
+#include "brave/components/containers/core/browser/containers_service.h"
 #include "brave/components/containers/core/mojom/containers.mojom.h"
 #endif
 
@@ -1179,6 +1181,10 @@ void OpenUrlInContainer(BrowserWindowInterface* browser_window,
   }
 
   CHECK(container);
+  auto* service =
+      ContainersServiceFactory::GetForProfile(browser_window->GetProfile());
+  CHECK(service);
+  service->MarkContainerUsed(container);
 
   NavigateParams params(browser_window, url, ui::PAGE_TRANSITION_LINK);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
