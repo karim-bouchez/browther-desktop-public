@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ui/views/page_action/page_action_properties_provider.cc b/chrome/browser/ui/views/page_action/page_action_properties_provider.cc
-index b8a5258c425b0e1f406b505589cfc2c5166d5166..f10222dd8ea0b109e91d831cf5d8ef6bf8415822 100644
+index 5a1dbd4d4e04755a7c792befaf12e4841d4d855a..3b4ba770ef0943cdb63f08a9efa9a9a6c29d6cba 100644
 --- a/chrome/browser/ui/views/page_action/page_action_properties_provider.cc
 +++ b/chrome/browser/ui/views/page_action/page_action_properties_provider.cc
 @@ -190,6 +190,13 @@ constexpr auto kPageActionProperties =
-                 .type = PageActionIconType::kAutofillAddress,
+                 .element_identifier = kAutofillAddressPageActionElementId,
              },
          },
 +        {
