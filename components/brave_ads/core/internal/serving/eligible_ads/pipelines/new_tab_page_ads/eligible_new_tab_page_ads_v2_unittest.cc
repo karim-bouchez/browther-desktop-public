@@ -17,6 +17,7 @@
 #include "brave/components/brave_ads/core/internal/creatives/new_tab_page_ads/creative_new_tab_page_ad_info.h"
 #include "brave/components/brave_ads/core/internal/creatives/new_tab_page_ads/creative_new_tab_page_ad_test_util.h"
 #include "brave/components/brave_ads/core/internal/serving/eligible_ads/eligible_ads_feature.h"
+#include "brave/components/brave_ads/core/internal/serving/eligible_ads/round_robin/creative_ad_round_robin.h"
 #include "brave/components/brave_ads/core/internal/serving/targeting/user_model/user_model_info.h"
 #include "brave/components/brave_ads/core/internal/targeting/behavioral/anti_targeting/resource/anti_targeting_resource.h"
 #include "brave/components/brave_ads/core/internal/targeting/geographical/subdivision/subdivision_targeting.h"
@@ -36,13 +37,15 @@ class BraveAdsEligibleNewTabPageAdsV2Test : public test::TestBase {
     subdivision_targeting_ = std::make_unique<SubdivisionTargeting>();
     anti_targeting_resource_ = std::make_unique<AntiTargetingResource>();
     eligible_ads_ = std::make_unique<EligibleNewTabPageAdsV2>(
-        *subdivision_targeting_, *anti_targeting_resource_);
+        *subdivision_targeting_, *anti_targeting_resource_,
+        creative_ad_round_robin_);
   }
 
   base::test::ScopedFeatureList scoped_feature_list_;
 
   std::unique_ptr<SubdivisionTargeting> subdivision_targeting_;
   std::unique_ptr<AntiTargetingResource> anti_targeting_resource_;
+  CreativeAdRoundRobin creative_ad_round_robin_;
   std::unique_ptr<EligibleNewTabPageAdsV2> eligible_ads_;
 };
 

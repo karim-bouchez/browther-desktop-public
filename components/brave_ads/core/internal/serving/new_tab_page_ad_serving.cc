@@ -31,9 +31,9 @@ namespace brave_ads {
 NewTabPageAdServing::NewTabPageAdServing(
     const SubdivisionTargeting& subdivision_targeting,
     const AntiTargetingResource& anti_targeting_resource) {
-  eligible_ads_ =
-      EligibleAdsFactory::Build(kNewTabPageAdServingVersion.Get(),
-                                subdivision_targeting, anti_targeting_resource);
+  eligible_ads_ = EligibleAdsFactory::Build(
+      kNewTabPageAdServingVersion.Get(), subdivision_targeting,
+      anti_targeting_resource, creative_ad_round_robin_);
 }
 
 NewTabPageAdServing::~NewTabPageAdServing() {
@@ -107,7 +107,7 @@ void NewTabPageAdServing::GetUserModel(
 void NewTabPageAdServing::GetUserModelCallback(
     MaybeServeNewTabPageAdCallback callback,
     uint64_t trace_id,
-    UserModelInfo user_model) const {
+    UserModelInfo user_model) {
   TRACE_EVENT_NESTABLE_ASYNC_END0(
       kTraceEventCategory, "NewTabPageAdServing::GetUserModel",
       TRACE_ID_WITH_SCOPE("NewTabPageAdServing", trace_id));
@@ -119,7 +119,7 @@ void NewTabPageAdServing::GetUserModelCallback(
 
 void NewTabPageAdServing::GetEligibleAds(
     MaybeServeNewTabPageAdCallback callback,
-    UserModelInfo user_model) const {
+    UserModelInfo user_model) {
   const uint64_t trace_id = base::trace_event::GetNextGlobalTraceId();
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
       kTraceEventCategory, "NewTabPageAdServing::GetEligibleAds",
@@ -135,7 +135,7 @@ void NewTabPageAdServing::GetEligibleAds(
 void NewTabPageAdServing::GetEligibleAdsCallback(
     MaybeServeNewTabPageAdCallback callback,
     uint64_t trace_id,
-    CreativeNewTabPageAdList creative_ads) const {
+    CreativeNewTabPageAdList creative_ads) {
   TRACE_EVENT_NESTABLE_ASYNC_END1(
       kTraceEventCategory, "NewTabPageAdServing::GetEligibleAds",
       TRACE_ID_WITH_SCOPE("NewTabPageAdServing", trace_id), "creative_ads",
@@ -157,13 +157,14 @@ void NewTabPageAdServing::GetEligibleAdsCallback(
   ServeAd(BuildNewTabPageAd(creative_ad), std::move(callback));
 }
 
-void NewTabPageAdServing::ServeAd(
-    const NewTabPageAdInfo& ad,
-    MaybeServeNewTabPageAdCallback callback) const {
+void NewTabPageAdServing::ServeAd(const NewTabPageAdInfo& ad,
+                                  MaybeServeNewTabPageAdCallback callback) {
   if (!ad.IsValid()) {
     BLOG(0, "New tab page ad not served: Invalid ad");
     return FailedToServeAd(std::move(callback));
   }
+
+  creative_ad_round_robin_.MarkAsServed(ad);
 
   eligible_ads_->SetLastServedAd(ad);
 

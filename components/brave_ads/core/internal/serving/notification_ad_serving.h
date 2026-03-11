@@ -15,6 +15,7 @@
 #include "base/memory/weak_ptr.h"
 #include "brave/components/brave_ads/core/internal/common/timer/timer.h"
 #include "brave/components/brave_ads/core/internal/creatives/notification_ads/creative_notification_ad_info.h"
+#include "brave/components/brave_ads/core/internal/serving/eligible_ads/round_robin/creative_ad_round_robin.h"
 #include "brave/components/brave_ads/core/internal/serving/notification_ad_serving_delegate.h"
 #include "brave/components/brave_ads/core/internal/serving/targeting/user_model/user_model_info.h"
 #include "brave/components/brave_ads/core/internal/user_engagement/ad_events/ad_event_info.h"
@@ -92,6 +93,8 @@ class NotificationAdServing final : public AdsClientNotifierObserver {
   Timer timer_;
 
   std::unique_ptr<EligibleNotificationAdsBase> eligible_ads_;
+
+  CreativeAdRoundRobin creative_ad_round_robin_;
 
   base::WeakPtrFactory<NotificationAdServing> weak_factory_{this};
 };

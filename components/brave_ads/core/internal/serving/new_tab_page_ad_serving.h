@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "brave/components/brave_ads/core/internal/creatives/new_tab_page_ads/creative_new_tab_page_ad_info.h"
+#include "brave/components/brave_ads/core/internal/serving/eligible_ads/round_robin/creative_ad_round_robin.h"
 #include "brave/components/brave_ads/core/internal/serving/new_tab_page_ad_serving_delegate.h"
 #include "brave/components/brave_ads/core/internal/serving/targeting/user_model/user_model_info.h"
 #include "brave/components/brave_ads/core/internal/user_engagement/ad_events/ad_event_info.h"
@@ -55,16 +56,16 @@ class NewTabPageAdServing final {
   void GetUserModel(MaybeServeNewTabPageAdCallback callback);
   void GetUserModelCallback(MaybeServeNewTabPageAdCallback callback,
                             uint64_t trace_id,
-                            UserModelInfo user_model) const;
+                            UserModelInfo user_model);
 
   void GetEligibleAds(MaybeServeNewTabPageAdCallback callback,
-                      UserModelInfo user_model) const;
+                      UserModelInfo user_model);
   void GetEligibleAdsCallback(MaybeServeNewTabPageAdCallback callback,
                               uint64_t trace_id,
-                              CreativeNewTabPageAdList creative_ads) const;
+                              CreativeNewTabPageAdList creative_ads);
 
   void ServeAd(const NewTabPageAdInfo& ad,
-               MaybeServeNewTabPageAdCallback callback) const;
+               MaybeServeNewTabPageAdCallback callback);
   void SuccessfullyServedAd(const NewTabPageAdInfo& ad,
                             MaybeServeNewTabPageAdCallback callback) const;
   void FailedToServeAd(MaybeServeNewTabPageAdCallback callback) const;
@@ -76,6 +77,8 @@ class NewTabPageAdServing final {
   raw_ptr<NewTabPageAdServingDelegate> delegate_ = nullptr;  // Not owned.
 
   std::unique_ptr<EligibleNewTabPageAdsBase> eligible_ads_;
+
+  CreativeAdRoundRobin creative_ad_round_robin_;
 
   base::WeakPtrFactory<NewTabPageAdServing> weak_factory_{this};
 };
