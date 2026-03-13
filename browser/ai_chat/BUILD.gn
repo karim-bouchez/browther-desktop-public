@@ -259,6 +259,7 @@ source_set("unit_tests") {
     "//brave/components/ai_chat/core/common",
     "//brave/components/ai_chat/core/common/mojom",
     "//brave/components/constants",
+    "//chrome/browser/ui/select_file_policy",
     "//chrome/common",
     "//chrome/test:test_support",
     "//components/paint_preview/common:test_utils",
