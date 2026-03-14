@@ -21,6 +21,8 @@
 -All/GlicEnablingAnyFreModeTest.Consented_ReturnsReady/*
 -All/GlicEnablingAnyFreModeTest.IsEnabledAndConsentForProfile_*/*
 -All/GlicEnablingAnyFreModeTest.NotSignedIn_ReturnsIneligible/*
+-All/GlicEnablingAutoOpenForPdfTest.ExpectedBehavior/*
+-All/GlicEnablingContextMenuTest.ExpectedBehavior/*
 -AppMenuModelTest.ProfileSyncBookmarkLimitExceededErrorHiddenTest_*
 -BrowsingHistoryHandlerTest.RequestAccountInfo
 -BrowsingHistoryHandlerTest.SendsUpdatedInfoOnAccountChange
@@ -119,7 +121,7 @@
 # nullptr.
 -ActorSitePolicyTest.*
 -AILanguageModelHackyPrototypeTest.Basic
--AILanguageModelTest.*
+-AILanguageModel*Test.*
 -AILanguageModelTestWithLanguageParams.PromptWithEnabledLanguages/*
 -AIManagerTest.*
 -AIProofreaderTest.*
@@ -323,6 +325,7 @@
 -EnclaveAuthenticatorRequestDelegateTest.BrowserProvidedPasskeysAvailable
 -EnclaveAuthenticatorRequestDelegateTest.BrowserProvidedPasskeysAvailableForSignedInUsers
 -EnclaveAuthenticatorRequestDelegateTest.BrowserProvidedPasskeysAvailable_NoAccount
+-EnclaveManagerTest.CookieJarChangeDoesNotDiscardActions
 -EnclaveManagerTest.PrimaryUserChange
 -EnclaveManagerTest.StoringOpportunisticallyRetrievedKeyAfterSignInOfMatchingAccount
 -ExtensionInstalledBubbleModelTransportModeTest.ShowSigninPromo_NonExtensionsExplicitSignin
@@ -339,11 +342,7 @@
 -PeopleHandlerSignoutTest.SignoutWithSyncOn
 -PeopleHandlerTest.*
 -PeopleHandlerWebOnlySigninTest.ChromeSigninUserAvailableOnWebSignin
--ShowPromoTest.ShouldShowSyncPromoSyncEnabled
--ShowPromoTest.ShowExtensionSyncPromoWithoutFeatureFlag
--ShowPromoTest.ShowPromoWithNoAccount
--ShowPromoTest.ShowPromoWithSignedInAccount
--ShowPromoTest.ShowSyncPromoWithSignedInAccount
+-ShowPromoTest.*
 -SigninManagerSupervisedUserTest.SignoutOnCookiesDeletedAllowed
 -SigninManagerSupervisedUserTest.SignoutOnCookiesDeletedNotAllowed/*
 -SignInPromoVersionTest.SignInPromoVersions
@@ -487,6 +486,7 @@
 -All/PageInfoBubbleViewPrivacyAndSiteDataSubpageTitleTest.DisplaysPrivacyAndSiteDataTitle/*
 -All/PageInfoCookiesContentView3pcdTitleAndDescriptionTest.*
 -All/PageInfoCookiesContentView3pcdCookieToggleTest.*
+-All/PageInfoCookiesContentViewA11yNameTest.ThirdPartyCookiesToggleA11yName/*
 -CookieControlsUserBypassTest.*
 -PageInfoCookiesContentViewTest.*
 -PageInfoCookiesContentView3pcdCookieToggleTest.*
@@ -725,6 +725,8 @@
 -OmniboxEditModelPopupTest.AimPopupEnabledNavigationFallback
 -OmniboxEditModelPopupTest.OnCurrentMatchChangedResetsSelectionBeforeAccessingMatches
 -OmniboxEditModelTest.*
+-WebUIReadOnlyOmniboxTest.GetOmniboxTextLength
+-WebUIReadOnlyOmniboxTest.StateManagement
 
 # These tests fail because we disable uploading these event logs
 # See WebRtcLogUploader::UploadCompressedLog patch.
@@ -801,6 +803,10 @@
 
 # This test fails because we disable installing the Captcha Provider component
 -CaptchaProviderComponentInstallerPolicyTest.ComponentRegistered
+
+# These tests fail because it's expected that the searchbox says "Ask Google",
+# whereas our searchbox says "Ask Brave"
+-SearchboxHandlerPecApiTest.GetPlaceholderConfig_*
 
 # Tests below this point have not been diagnosed or had issues created yet.
 -AboutFlagsHistogramTest.*
