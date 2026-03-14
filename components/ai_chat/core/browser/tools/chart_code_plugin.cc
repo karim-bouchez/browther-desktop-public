@@ -63,7 +63,7 @@ const chartUtil = {
 )";
 }
 
-std::string_view ChartCodePlugin::ArtifactType() const {
+std::optional<std::string_view> ChartCodePlugin::ArtifactType() const {
   return mojom::kLineChartArtifactType;
 }
 
