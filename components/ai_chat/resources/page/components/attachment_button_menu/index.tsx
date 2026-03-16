@@ -56,6 +56,7 @@ export default function AttachmentButtonMenu(props: Props) {
             kind='plain-faint'
             title={getLocale(S.AI_CHAT_LEO_ATTACHMENT_MENU_BUTTON_LABEL)}
             isDisabled={isMenuDisabled}
+            data-test-id='attachment-button'
           >
             <Icon name='attachment' />
           </Button>
@@ -70,7 +71,7 @@ export default function AttachmentButtonMenu(props: Props) {
           </div>
         </leo-menu-item>
         {hasAssociatedContent && (
-          <leo-menu-item onClick={() => props.getScreenshots()}>
+          <leo-menu-item data-test-id='screenshot' onClick={() => props.getScreenshots()}>
             <div className={styles.buttonContent}>
               <Icon
                 className={styles.buttonIcon}
@@ -103,7 +104,7 @@ export default function AttachmentButtonMenu(props: Props) {
           </leo-menu-item>
         )}
         {props.unassociatedTabs.length > 0 && (
-          <leo-menu-item onClick={() => props.setAttachmentsDialog('tabs')}>
+          <leo-menu-item data-test-id='open-tabs' onClick={() => props.setAttachmentsDialog('tabs')}>
             <div className={styles.buttonContent}>
               <Icon
                 className={styles.buttonIcon}
