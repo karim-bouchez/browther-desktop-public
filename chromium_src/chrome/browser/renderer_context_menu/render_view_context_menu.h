@@ -57,7 +57,8 @@ class BraveRenderViewContextMenu
   // NOLINTNEXTLINE(runtime/references)
   BraveRenderViewContextMenu(content::RenderFrameHost& render_frame_host,
                              const content::ContextMenuParams& params,
-                             bool is_paste_enabled);
+                             bool is_paste_enabled,
+                             bool is_paste_and_match_style_enabled);
   ~BraveRenderViewContextMenu() override;
   // RenderViewContextMenuBase:
   bool IsCommandIdEnabled(int command_id) const override;
