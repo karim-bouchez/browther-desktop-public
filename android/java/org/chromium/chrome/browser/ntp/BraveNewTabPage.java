@@ -57,6 +57,7 @@ public class BraveNewTabPage extends NewTabPage {
     // To delete in bytecode, members from parent class will be used instead.
     private @Nullable BrowserControlsStateProvider mBrowserControlsStateProvider;
     private @Nullable NewTabPageLayout mNewTabPageLayout;
+    private @Nullable NewTabPageCoordinator mNewTabPageCoordinator;
 
     @SuppressWarnings("UnusedVariable")
     private @Nullable FeedSurfaceProvider mFeedSurfaceProvider;
@@ -147,7 +148,7 @@ public class BraveNewTabPage extends NewTabPage {
     }
 
     @Override
-    @EnsuresNonNull({"mNewTabPageLayout", "mFeedSurfaceProvider"})
+    @EnsuresNonNull({"mNewTabPageLayout", "mNewTabPageCoordinator", "mFeedSurfaceProvider"})
     protected void initializeMainView(
             Activity activity,
             WindowAndroid windowAndroid,
@@ -165,6 +166,8 @@ public class BraveNewTabPage extends NewTabPage {
 
         LayoutInflater inflater = LayoutInflater.from(activity);
         mNewTabPageLayout = (NewTabPageLayout) inflater.inflate(R.layout.new_tab_page_layout, null);
+        mNewTabPageCoordinator =
+                new NewTabPageCoordinator(mNewTabPageManager, activity, mNewTabPageLayout);
 
         // No-op stub to deal with non-null requirement
         FeedSurfaceCoordinator.ActionDelegateFactory actionDelegate =
@@ -192,7 +195,7 @@ public class BraveNewTabPage extends NewTabPage {
                         activity,
                         snackbarManager,
                         windowAndroid,
-                        new SnapScrollHelperImpl(mNewTabPageManager, mNewTabPageLayout),
+                        new SnapScrollHelperImpl(mNewTabPageManager, mNewTabPageCoordinator),
                         mNewTabPageLayout,
                         mBrowserControlsStateProvider.getTopControlsHeight(),
                         isInNightMode,
