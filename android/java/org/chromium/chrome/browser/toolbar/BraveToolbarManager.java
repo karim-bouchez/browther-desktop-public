@@ -34,6 +34,7 @@ import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
@@ -119,7 +120,7 @@ public class BraveToolbarManager extends ToolbarManager
 
     // To delete in bytecode, members from parent class will be used instead.
     private SettableMonotonicObservableSupplier<BottomControlsCoordinator>
-            mBottomControlsCoordinatorSupplier;
+            mTabGroupUiBottomControlsCoordinatorSupplier;
     private CallbackController mCallbackController;
     private BottomControlsStacker mBottomControlsStacker;
     private FullscreenManager mFullscreenManager;
@@ -305,10 +306,11 @@ public class BraveToolbarManager extends ToolbarManager
 
         mBraveHomepageStateListener =
                 () -> {
-                    if (mBottomControlsCoordinatorSupplier != null
-                            && mBottomControlsCoordinatorSupplier.get()
+                    if (mTabGroupUiBottomControlsCoordinatorSupplier != null
+                            && mTabGroupUiBottomControlsCoordinatorSupplier.get()
                                     instanceof BraveBottomControlsCoordinator) {
-                        ((BraveBottomControlsCoordinator) mBottomControlsCoordinatorSupplier.get())
+                        ((BraveBottomControlsCoordinator)
+                                        mTabGroupUiBottomControlsCoordinatorSupplier.get())
                                 .updateHomeButtonState();
                     }
                 };
@@ -393,6 +395,7 @@ public class BraveToolbarManager extends ToolbarManager
                             mFullscreenManager,
                             mEdgeToEdgeControllerSupplier,
                             mBottomControls,
+                            LayerType.TABSTRIP_TOOLBAR,
                             bottomControlsContentDelegateSupplier,
                             mTabObscuringHandler,
                             mOverlayPanelVisibilitySupplier,
@@ -435,11 +438,11 @@ public class BraveToolbarManager extends ToolbarManager
                         mActivity.findViewById(R.id.control_container),
                         closeAllTabsAction);
             }
-            assert mBottomControlsCoordinatorSupplier != null
+            assert mTabGroupUiBottomControlsCoordinatorSupplier != null
                     : "It must not be null at this point! Something has changed in the upstream!";
-            mBottomControlsCoordinatorSupplier.set(bottomControlsCoordinator);
+            mTabGroupUiBottomControlsCoordinatorSupplier.set(bottomControlsCoordinator);
             mBottomControls.setBottomControlsCoordinatorSupplier(
-                    mBottomControlsCoordinatorSupplier);
+                    mTabGroupUiBottomControlsCoordinatorSupplier);
             updateBraveBottomControlsVisibility();
             if (mIsBraveBottomControlsVisible) {
                 mBottomControls.setVisibility(View.VISIBLE);
@@ -535,8 +538,8 @@ public class BraveToolbarManager extends ToolbarManager
     protected void onOrientationChange() {
         if (mActionModeController != null) mActionModeController.showControlsOnOrientationChange();
 
-        if (mBottomControlsCoordinatorSupplier != null
-                && mBottomControlsCoordinatorSupplier.get() != null
+        if (mTabGroupUiBottomControlsCoordinatorSupplier != null
+                && mTabGroupUiBottomControlsCoordinatorSupplier.get() != null
                 && BottomToolbarConfiguration.isBraveBottomControlsEnabled()) {
             boolean isBraveBottomControlsVisible =
                     mCurrentOrientation != Configuration.ORIENTATION_LANDSCAPE;
@@ -564,10 +567,10 @@ public class BraveToolbarManager extends ToolbarManager
                 currentTab == null || bridge == null || bridge.isEditBookmarksEnabled();
         mToolbar.updateBookmarkButton(isBookmarked, editingAllowed);
 
-        if (mBottomControlsCoordinatorSupplier != null
-                && mBottomControlsCoordinatorSupplier.get()
+        if (mTabGroupUiBottomControlsCoordinatorSupplier != null
+                && mTabGroupUiBottomControlsCoordinatorSupplier.get()
                         instanceof BraveBottomControlsCoordinator) {
-            ((BraveBottomControlsCoordinator) mBottomControlsCoordinatorSupplier.get())
+            ((BraveBottomControlsCoordinator) mTabGroupUiBottomControlsCoordinatorSupplier.get())
                     .updateBookmarkButton(isBookmarked, editingAllowed);
         }
     }
@@ -587,10 +590,10 @@ public class BraveToolbarManager extends ToolbarManager
         if (mToolbar instanceof BraveTopToolbarCoordinator) {
             ((BraveTopToolbarCoordinator) mToolbar).onBottomControlsVisibilityChanged(visible);
         }
-        if (mBottomControlsCoordinatorSupplier != null
-                && mBottomControlsCoordinatorSupplier.get()
+        if (mTabGroupUiBottomControlsCoordinatorSupplier != null
+                && mTabGroupUiBottomControlsCoordinatorSupplier.get()
                         instanceof BraveBottomControlsCoordinator) {
-            ((BraveBottomControlsCoordinator) mBottomControlsCoordinatorSupplier.get())
+            ((BraveBottomControlsCoordinator) mTabGroupUiBottomControlsCoordinatorSupplier.get())
                     .setBottomToolbarVisible(visible);
         }
     }
