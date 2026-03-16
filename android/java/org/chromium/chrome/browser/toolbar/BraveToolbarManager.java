@@ -328,7 +328,7 @@ public class BraveToolbarManager extends ToolbarManager
                 return;
             }
             ViewStub bottomControlsStub =
-                    (ViewStub) mActivity.findViewById(R.id.bottom_controls_stub);
+                    (ViewStub) mActivity.findViewById(R.id.tab_group_ui_container_stub);
             mBottomControls =
                     (BraveScrollingBottomViewResourceFrameLayout) bottomControlsStub.inflate();
 
