@@ -53,7 +53,7 @@ class Eip1559Transaction : public Eip2930Transaction {
 
   // 0x02 || rlp([chainId, nonce, maxPriorityFeePerGas, maxFeePerGas,
   // gasLimit, destination, value, data, access_list])
-  std::vector<uint8_t> GetMessageToSignImpl(uint256_t chain_id) const override;
+  std::vector<uint8_t> GetMessageToSignImpl() const override;
 
   // 0x02 || rlp([chainId, nonce, maxPriorityFeePerGas, maxFeePerGas,
   // gasLimit, destination, value, data, accessList, signatureYParity,

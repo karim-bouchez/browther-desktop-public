@@ -32,6 +32,7 @@
 #include "brave/components/brave_wallet/browser/network_manager.h"
 #include "brave/components/brave_wallet/browser/tx_service.h"
 #include "brave/components/brave_wallet/common/eth_address.h"
+#include "brave/components/brave_wallet/common/hash_utils.h"
 #include "brave/components/brave_wallet/common/hex_utils.h"
 #include "components/grit/brave_components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -468,17 +469,12 @@ void EthTxManager::GetEthTransactionMessageToSign(
     const std::string& tx_meta_id,
     GetEthTransactionMessageToSignCallback callback) {
   std::unique_ptr<EthTxMeta> meta = GetEthTxStateManager().GetEthTx(tx_meta_id);
-  if (!meta) {
+  if (!meta || meta->tx()->IsReadyToBeSigned()) {
     std::move(callback).Run(std::nullopt);
     return;
   }
-  uint256_t chain_id = 0;
-  if (!HexValueToUint256(meta->chain_id(), &chain_id)) {
-    std::move(callback).Run(std::nullopt);
-    return;
-  }
-  std::move(callback).Run(base::ToLowerASCII(
-      base::HexEncode(meta->tx()->GetMessageToSign(chain_id))));
+
+  std::move(callback).Run(base::HexEncodeLower(meta->tx()->GetMessageToSign()));
 }
 
 mojom::CoinType EthTxManager::GetCoinType() const {
@@ -515,8 +511,12 @@ void EthTxManager::ProcessEthHardwareSignature(
         l10n_util::GetStringUTF8(IDS_BRAVE_WALLET_TRANSACTION_NOT_FOUND));
     return;
   }
-  if (!meta->tx()->ProcessVRS(hw_signature->v_bytes, hw_signature->r_bytes,
-                              hw_signature->s_bytes)) {
+
+  std::optional<Secp256k1Signature> signature = EthTransaction::ParseLedgerVRS(
+      meta->tx()->type(), meta->tx()->chain_id(), hw_signature->v_bytes,
+      hw_signature->r_bytes, hw_signature->s_bytes);
+
+  if (!signature) {
     meta->set_status(mojom::TransactionStatus::Error);
     tx_state_manager().AddOrUpdateTx(*meta);
     std::move(callback).Run(
@@ -525,6 +525,9 @@ void EthTxManager::ProcessEthHardwareSignature(
             IDS_BRAVE_WALLET_HARDWARE_PROCESS_TRANSACTION_ERROR));
     return;
   }
+  meta->tx()->set_signature(std::move(*signature));
+  CHECK(meta->tx()->IsSigned());
+  auto signed_tx = ToHex(meta->tx()->GetSignedTransaction());
   meta->set_status(mojom::TransactionStatus::Approved);
   if (!tx_state_manager().AddOrUpdateTx(*meta)) {
     std::move(callback).Run(
@@ -532,13 +535,12 @@ void EthTxManager::ProcessEthHardwareSignature(
         l10n_util::GetStringUTF8(IDS_WALLET_INTERNAL_ERROR));
     return;
   }
-  auto data = meta->tx()->GetSignedTransaction();
 
   auto internal_callback =
       base::BindOnce(&EthTxManager::ContinueProcessHardwareSignature,
                      weak_factory_.GetWeakPtr(), std::move(callback));
 
-  PublishTransaction(meta->chain_id(), tx_meta_id, data,
+  PublishTransaction(meta->chain_id(), tx_meta_id, std::move(signed_tx),
                      std::move(internal_callback));
 }
 
@@ -604,6 +606,7 @@ void EthTxManager::OnGetNextNonce(std::unique_ptr<EthTxMeta> meta,
   }
 
   meta->tx()->set_nonce(nonce);
+  CHECK(meta->tx()->IsReadyToBeSigned());
 
   if (keyring_service().IsLockedSync()) {
     std::move(callback).Run(
@@ -614,8 +617,20 @@ void EthTxManager::OnGetNextNonce(std::unique_ptr<EthTxMeta> meta,
     return;
   }
 
-  keyring_service().SignTransactionByDefaultKeyring(meta->from(), meta->tx(),
-                                                    chain_id);
+  auto hashed_message = KeccakHash(meta->tx()->GetMessageToSign());
+  auto signature = keyring_service().SignMessageByEthereumKeyring(
+      meta->from(), hashed_message);
+  if (!signature.has_value()) {
+    std::move(callback).Run(
+        false,
+        mojom::ProviderErrorUnion::NewProviderError(
+            mojom::ProviderError::kInternalError),
+        l10n_util::GetStringUTF8(IDS_WALLET_INTERNAL_ERROR));
+    return;
+  }
+
+  meta->tx()->set_signature(std::move(signature.value()));
+  CHECK(meta->tx()->IsSigned());
   meta->set_status(mojom::TransactionStatus::Approved);
   if (!tx_state_manager().AddOrUpdateTx(*meta)) {
     std::move(callback).Run(
@@ -625,17 +640,10 @@ void EthTxManager::OnGetNextNonce(std::unique_ptr<EthTxMeta> meta,
         l10n_util::GetStringUTF8(IDS_WALLET_INTERNAL_ERROR));
     return;
   }
-  if (!meta->tx()->IsSigned()) {
-    std::move(callback).Run(
-        false,
-        mojom::ProviderErrorUnion::NewProviderError(
-            mojom::ProviderError::kInternalError),
-        l10n_util::GetStringUTF8(IDS_WALLET_SIGN_TRANSACTION_ERROR));
-    return;
-  }
+
   if (meta->sign_only()) {
     meta->set_status(mojom::TransactionStatus::Signed);
-    meta->set_tx_hash(meta->tx()->GetTransactionHash());
+    meta->set_tx_hash(ToHex(KeccakHash(meta->tx()->GetSignedTransaction())));
     if (!tx_state_manager().AddOrUpdateTx(*meta)) {
       std::move(callback).Run(
           false,
@@ -652,7 +660,8 @@ void EthTxManager::OnGetNextNonce(std::unique_ptr<EthTxMeta> meta,
     UpdatePendingTransactions(meta->chain_id());
   } else {
     PublishTransaction(meta->chain_id(), meta->id(),
-                       meta->tx()->GetSignedTransaction(), std::move(callback));
+                       ToHex(meta->tx()->GetSignedTransaction()),
+                       std::move(callback));
   }
 }
 

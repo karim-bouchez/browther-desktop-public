@@ -216,7 +216,7 @@ export function fromUntrustedEthereumSignatureVRS(
   untrusted: Untrusted.EthereumSignatureVRS,
 ): BraveWallet.EthereumSignatureVRS | undefined {
   return {
-    vBytes: [...untrusted.vBytes],
+    vHex: untrusted.vHex,
     rBytes: [...untrusted.rBytes],
     sBytes: [...untrusted.sBytes],
   }

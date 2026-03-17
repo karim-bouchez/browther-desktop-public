@@ -14,6 +14,7 @@
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "brave/components/brave_wallet/browser/internal/hd_key.h"
+#include "brave/components/brave_wallet/common/hash_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace brave_wallet {
@@ -38,7 +39,7 @@ TEST(Eip1559TransactionUnitTest, GetMessageToSign) {
 
   access_list->push_back(item);
 
-  EXPECT_EQ(base::HexEncodeLower(tx.GetHashedMessageToSign(0)),
+  EXPECT_EQ(base::HexEncodeLower(KeccakHash(tx.GetMessageToSign())),
             "fa81814f7dd57bad435657a05eabdba2815f41e3f15ddd6139027e7db56b0dea");
 }
 
@@ -129,10 +130,10 @@ TEST(Eip1559TransactionUnitTest, GetSignedTransactionAndHash) {
                                std::nullopt),
             "0x04", entry.max_priority_fee_per_gas, entry.max_fee_per_gas));
 
-    auto signature = *key->SignCompact(tx.GetHashedMessageToSign(0));
-    tx.ProcessSignature(signature, 0);
-    EXPECT_EQ(tx.GetSignedTransaction(), entry.signed_tx);
-    EXPECT_EQ(tx.GetTransactionHash(), entry.hash);
+    auto signature = *key->SignCompact(KeccakHash(tx.GetMessageToSign()));
+    tx.set_signature(std::move(signature));
+    EXPECT_EQ(ToHex(tx.GetSignedTransaction()), entry.signed_tx);
+    EXPECT_EQ(ToHex(KeccakHash(tx.GetSignedTransaction())), entry.hash);
   }
 }
 

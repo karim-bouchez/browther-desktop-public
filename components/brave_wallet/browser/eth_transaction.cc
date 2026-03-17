@@ -7,11 +7,12 @@
 
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "base/base64.h"
 #include "base/check.h"
 #include "base/containers/to_vector.h"
-#include "base/logging.h"
+#include "base/types/optional_util.h"
 #include "base/values.h"
 #include "brave/components/brave_wallet/browser/rlp_encode.h"
 #include "brave/components/brave_wallet/common/eth_address.h"
@@ -21,10 +22,28 @@
 namespace brave_wallet {
 
 namespace {
+
 constexpr uint256_t kContractCreationCost = 32000;
 constexpr uint256_t kTransactionCost = 21000;
 constexpr uint256_t kTxDataZeroCostPerByte = 4;
 constexpr uint256_t kTxDataCostPerByte = 16;
+
+uint256_t VForSerialize(uint8_t recid,
+                        uint256_t chain_id,
+                        EthTransactionType type) {
+  CHECK_GE(recid, 0u);
+  CHECK_LE(recid, 3u);
+
+  if (type == EthTransactionType::kLegacy) {
+    if (chain_id == 0) {
+      return recid + 27;
+    }
+
+    return recid + (chain_id * 2 + 35);
+  }
+  return recid;
+}
+
 }  // namespace
 
 EthTransaction::EthTransaction()
@@ -35,13 +54,15 @@ EthTransaction::EthTransaction()
 
 EthTransaction::EthTransaction(const EthTransaction&) = default;
 EthTransaction::EthTransaction(
+    uint256_t chain_id,
     std::optional<uint256_t> nonce,
     uint256_t gas_price,
     uint256_t gas_limit,
     std::variant<EthAddress, EthContractCreationAddress> to,
     uint256_t value,
     const std::vector<uint8_t>& data)
-    : nonce_(nonce),
+    : chain_id_(chain_id),
+      nonce_(nonce),
       gas_price_(gas_price),
       gas_limit_(gas_limit),
       to_(to),
@@ -153,31 +174,33 @@ std::optional<EthTransaction> EthTransaction::FromValue(
   }
   tx.data_ = std::vector<uint8_t>(data_decoded.begin(), data_decoded.end());
 
-  std::optional<int> v = value.FindInt("v");
-  if (!v) {
-    return std::nullopt;
-  }
-  tx.v_ = (uint8_t)*v;
+  /*
+    std::optional<int> v = value.FindInt("v");
+    if (!v) {
+      return std::nullopt;
+    }
+    tx.v_ = (uint8_t)*v;
 
-  const std::string* r = value.FindString("r");
-  if (!r) {
-    return std::nullopt;
-  }
-  std::string r_decoded;
-  if (!base::Base64Decode(*r, &r_decoded)) {
-    return std::nullopt;
-  }
-  tx.r_ = std::vector<uint8_t>(r_decoded.begin(), r_decoded.end());
+    const std::string* r = value.FindString("r");
+    if (!r) {
+      return std::nullopt;
+    }
+    std::string r_decoded;
+    if (!base::Base64Decode(*r, &r_decoded)) {
+      return std::nullopt;
+    }
+    tx.r_ = std::vector<uint8_t>(r_decoded.begin(), r_decoded.end());
 
-  const std::string* s = value.FindString("s");
-  if (!s) {
-    return std::nullopt;
-  }
-  std::string s_decoded;
-  if (!base::Base64Decode(*s, &s_decoded)) {
-    return std::nullopt;
-  }
-  tx.s_ = std::vector<uint8_t>(s_decoded.begin(), s_decoded.end());
+    const std::string* s = value.FindString("s");
+    if (!s) {
+      return std::nullopt;
+    }
+    std::string s_decoded;
+    if (!base::Base64Decode(*s, &s_decoded)) {
+      return std::nullopt;
+    }
+    tx.s_ = std::vector<uint8_t>(s_decoded.begin(), s_decoded.end());
+  */
 
   std::optional<int> type = value.FindInt("type");
   if (!type) {
@@ -191,15 +214,17 @@ std::optional<EthTransaction> EthTransaction::FromValue(
   }
   return tx;
 }
-
-std::vector<uint8_t> EthTransaction::GetMessageToSign(
-    uint256_t chain_id) const {
-  return GetMessageToSignImpl(chain_id);
+const Secp256k1Signature* EthTransaction::GetSignature() const {
+  return base::OptionalToPtr(signature_);
 }
 
-std::vector<uint8_t> EthTransaction::GetMessageToSignImpl(
-    uint256_t chain_id) const {
-  DCHECK(nonce_);
+std::vector<uint8_t> EthTransaction::GetMessageToSign() const {
+  CHECK(IsReadyToBeSigned());
+  return GetMessageToSignImpl();
+}
+
+std::vector<uint8_t> EthTransaction::GetMessageToSignImpl() const {
+  CHECK(nonce_);
   base::ListValue list;
   list.Append(RLPUint256ToBlob(nonce_.value()));
   list.Append(RLPUint256ToBlob(gas_price_));
@@ -207,72 +232,75 @@ std::vector<uint8_t> EthTransaction::GetMessageToSignImpl(
   list.Append(base::Value::BlobStorage(GetToBytes()));
   list.Append(RLPUint256ToBlob(value_));
   list.Append(base::Value(data_));
-  if (chain_id) {
-    list.Append(RLPUint256ToBlob(chain_id));
+  if (chain_id_) {
+    list.Append(RLPUint256ToBlob(chain_id_));
     list.Append(RLPUint256ToBlob(0));
     list.Append(RLPUint256ToBlob(0));
   }
-
   return RLPEncode(list);
 }
 
-KeccakHashArray EthTransaction::GetHashedMessageToSign(
-    uint256_t chain_id) const {
-  return KeccakHash(GetMessageToSign(chain_id));
+// KeccakHashArray EthTransaction::GetHashedMessageToSign() const {
+//   auto msg_to_sign = GetMessageToSign();
+//   if (!msg_to_sign) {
+//     return std::nullopt;
+//   }
+
+//   return KeccakHash(*msg_to_sign);
+// }
+
+std::vector<uint8_t> EthTransaction::GetSignedTransaction() const {
+  CHECK(IsSigned());
+  return Serialize();
 }
 
-std::string EthTransaction::GetSignedTransaction() const {
-  DCHECK(IsSigned());
-  DCHECK(nonce_);
+// std::string EthTransaction::GetTransactionHash() const {
+//   CHECK(IsSigned());
+//   return ToHex(KeccakHash(Serialize()));
+// }
 
-  return ToHex(Serialize());
-}
+// bool EthTransaction::ProcessVRS(const std::vector<uint8_t>& v,
+//                                 const std::vector<uint8_t>& r,
+//                                 const std::vector<uint8_t>& s) {
+//   if (r.empty() || s.empty() || v.empty()) {
+//     return false;
+//   }
 
-std::string EthTransaction::GetTransactionHash() const {
-  DCHECK(IsSigned());
-  DCHECK(nonce_);
+//   if (!HexValueToUint256(ToHex(v), &v_)) {
+//     LOG(ERROR) << "Unable to decode v param";
+//     return false;
+//   }
 
-  return ToHex(KeccakHash(Serialize()));
-}
+//   r_ = r;
+//   s_ = s;
+//   return true;
+// }
 
-bool EthTransaction::ProcessVRS(const std::vector<uint8_t>& v,
-                                const std::vector<uint8_t>& r,
-                                const std::vector<uint8_t>& s) {
-  if (r.empty() || s.empty() || v.empty()) {
-    return false;
-  }
+// // signature and recid will be used to produce v, r, s
+// void EthTransaction::ProcessSignature(const Secp256k1Signature& signature,
+//                                       uint256_t chain_id) {
+//   r_ = base::ToVector(signature.rs_bytes().subspan(0u, 32u));
+//   s_ = base::ToVector(signature.rs_bytes().subspan(32u, 32u));
 
-  if (!HexValueToUint256(ToHex(v), &v_)) {
-    LOG(ERROR) << "Unable to decode v param";
-    return false;
-  }
+//   if (type_ != EthTransactionType::kLegacy) {
+//     // For EIP-1559 and EIP-2930 recovery id is used as is.
+//     v_ = signature.recid();
+//   } else {
+//     // For EIP-155 recovery id is adjusted with chain_id.
+//     v_ = chain_id ? static_cast<uint256_t>(signature.recid()) +
+//                         (chain_id * static_cast<uint256_t>(2) +
+//                          static_cast<uint256_t>(35))
+//                   : static_cast<uint256_t>(signature.recid()) +
+//                         static_cast<uint256_t>(27);
+//   }
+// }
 
-  r_ = r;
-  s_ = s;
-  return true;
-}
-
-// signature and recid will be used to produce v, r, s
-void EthTransaction::ProcessSignature(const Secp256k1Signature& signature,
-                                      uint256_t chain_id) {
-  r_ = base::ToVector(signature.rs_bytes().subspan(0u, 32u));
-  s_ = base::ToVector(signature.rs_bytes().subspan(32u, 32u));
-
-  if (type_ != EthTransactionType::kLegacy) {
-    // For EIP-1559 and EIP-2930 recovery id is used as is.
-    v_ = signature.recid();
-  } else {
-    // For EIP-155 recovery id is adjusted with chain_id.
-    v_ = chain_id ? static_cast<uint256_t>(signature.recid()) +
-                        (chain_id * static_cast<uint256_t>(2) +
-                         static_cast<uint256_t>(35))
-                  : static_cast<uint256_t>(signature.recid()) +
-                        static_cast<uint256_t>(27);
-  }
+bool EthTransaction::IsReadyToBeSigned() const {
+  return nonce_.has_value();
 }
 
 bool EthTransaction::IsSigned() const {
-  return !r_.empty() && !s_.empty();
+  return nonce_.has_value() && signature_.has_value();
 }
 
 base::DictValue EthTransaction::ToValue() const {
@@ -287,10 +315,14 @@ base::DictValue EthTransaction::ToValueImpl() const {
   dict.Set("to", GetToHex());
   dict.Set("value", Uint256ValueToHex(value_));
   dict.Set("data", base::Base64Encode(data_));
-  dict.Set("v", static_cast<int>(v_));
-  dict.Set("r", base::Base64Encode(r_));
-  dict.Set("s", base::Base64Encode(s_));
+  // dict.Set("v", static_cast<int>(v_));
+  // dict.Set("r", base::Base64Encode(r_));
+  // dict.Set("s", base::Base64Encode(s_));
   dict.Set("type", static_cast<int>(type_));
+  if (signature_) {
+    dict.Set("signature_bytes", base::Base64Encode(signature_->rs_bytes()));
+    dict.Set("signature_recid", signature_->recid());
+  }
 
   return dict;
 }
@@ -313,6 +345,9 @@ uint256_t EthTransaction::GetDataFee() const {
 }
 
 std::vector<uint8_t> EthTransaction::Serialize() const {
+  CHECK(nonce_);
+  CHECK(signature_);
+
   base::ListValue list;
   list.Append(RLPUint256ToBlob(nonce_.value()));
   list.Append(RLPUint256ToBlob(gas_price_));
@@ -320,9 +355,10 @@ std::vector<uint8_t> EthTransaction::Serialize() const {
   list.Append(base::Value::BlobStorage(GetToBytes()));
   list.Append(RLPUint256ToBlob(value_));
   list.Append(base::Value(data_));
-  list.Append(RLPUint256ToBlob(v_));
-  list.Append(base::Value(r_));
-  list.Append(base::Value(s_));
+  list.Append(
+      RLPUint256ToBlob(VForSerialize(signature_->recid(), chain_id_, type_)));
+  list.Append(base::Value(signature_->r_bytes()));
+  list.Append(base::Value(signature_->s_bytes()));
 
   return RLPEncode(base::Value(std::move(list)));
 }
@@ -358,6 +394,43 @@ std::string EthTransaction::GetToChecksumAddress() const {
   } else {
     return eth_addr->ToChecksumAddress();
   }
+}
+
+// static
+std::optional<Secp256k1Signature> EthTransaction::ParseLedgerVRS(
+    EthTransactionType type,
+    uint256_t chain_id,
+    const std::vector<uint8_t>& v,
+    const std::vector<uint8_t>& r,
+    const std::vector<uint8_t>& s) {
+  uint256_t v256 = 0;
+  if (!HexValueToUint256(ToHex(v), &v256)) {
+    return std::nullopt;
+  }
+
+  base::CheckedNumeric<uint256_t> recid_checked = v256;
+
+  if (type == EthTransactionType::kLegacy) {
+    if (chain_id == 0) {
+      recid_checked -= 27u;
+    } else {
+      recid_checked -= 35u;
+      recid_checked /= 2u;
+      recid_checked /= chain_id;
+    }
+  }
+  uint8_t recid = 0;
+  if (!recid_checked.AssignIfValid(&recid)) {
+    return std::nullopt;
+  }
+
+  auto r_span = base::span(r).to_fixed_extent<Secp256k1Signature::kRSize>();
+  auto s_span = base::span(r).to_fixed_extent<Secp256k1Signature::kSSize>();
+  if (!r_span || !s_span) {
+    return std::nullopt;
+  }
+
+  return Secp256k1Signature::CreateFromPayload(*r_span, *s_span, recid);
 }
 
 }  // namespace brave_wallet

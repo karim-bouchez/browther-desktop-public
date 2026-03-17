@@ -46,6 +46,7 @@ class EthTransaction {
   static std::optional<EthTransaction> FromValue(const base::DictValue& value);
 
   EthTransactionType type() const { return type_; }
+  uint256_t chain_id() const { return chain_id_; }
 
   std::optional<uint256_t> nonce() const { return nonce_; }
   uint256_t gas_price() const { return gas_price_; }
@@ -55,10 +56,9 @@ class EthTransaction {
   }
   uint256_t value() const { return value_; }
   std::vector<uint8_t> data() const { return data_; }
-  uint256_t v() const { return v_; }
-  std::vector<uint8_t> r() const { return r_; }
-  std::vector<uint8_t> s() const { return s_; }
+  const Secp256k1Signature* GetSignature() const;
 
+  void set_chain_id(uint256_t chain_id) { chain_id_ = chain_id; }
   void set_to(const EthAddress& to) { to_ = to; }
   void set_to(const EthContractCreationAddress& to) { to_ = to; }
   void set_value(uint256_t value) { value_ = value; }
@@ -66,31 +66,24 @@ class EthTransaction {
   void set_data(const std::vector<uint8_t>& data) { data_ = data; }
   void set_gas_price(uint256_t gas_price) { gas_price_ = gas_price; }
   void set_gas_limit(uint256_t gas_limit) { gas_limit_ = gas_limit; }
-  bool ProcessVRS(const std::vector<uint8_t>& v,
-                  const std::vector<uint8_t>& r,
-                  const std::vector<uint8_t>& s);
+  void set_signature(Secp256k1Signature signature) {
+    signature_ = std::move(signature);
+  }
   bool IsToCreationAddress() const {
     return std::get_if<EthContractCreationAddress>(&to_);
   }
 
+  // Prerequisite for GetMessageToSign() call.
+  bool IsReadyToBeSigned() const;
   // Creates binary message for signing depending on transaction's version.
-  std::vector<uint8_t> GetMessageToSign(uint256_t chain_id) const;
+  // Has `CHECK(IsReadyToBeSigned())` requirement.
+  std::vector<uint8_t> GetMessageToSign() const;
 
-  // keccak(GetMessageToSign(chain_id))
-  KeccakHashArray GetHashedMessageToSign(uint256_t chain_id) const;
-
-  // Returns hex of serialized transaction.
-  std::string GetSignedTransaction() const;
-
-  // Returns hex of serialized transaction keccak hash.
-  std::string GetTransactionHash() const;
-
-  // signature and recid will be used to produce v, r, s
-  // Support EIP-155 chain id
-  void ProcessSignature(const Secp256k1Signature& signature,
-                        uint256_t chain_id);
-
+  // Prerequisite for GetSignedTransaction().
   bool IsSigned() const;
+  // Returns hex of serialized transaction.
+  // Has `CHECK(IsSigned())` requirement.
+  std::vector<uint8_t> GetSignedTransaction() const;
 
   base::DictValue ToValue() const;
 
@@ -100,6 +93,13 @@ class EthTransaction {
   std::string GetToHex() const;
   std::string GetToChecksumAddress() const;
 
+  static std::optional<Secp256k1Signature> ParseLedgerVRS(
+      EthTransactionType type,
+      uint256_t chain_id,
+      const std::vector<uint8_t>& v,
+      const std::vector<uint8_t>& r,
+      const std::vector<uint8_t>& s);
+
  protected:
   FRIEND_TEST_ALL_PREFIXES(EthTransactionUnitTest, GetSignedTransactionAndHash);
   FRIEND_TEST_ALL_PREFIXES(EthTransactionUnitTest, TransactionAndValue);
@@ -107,7 +107,8 @@ class EthTransaction {
   FRIEND_TEST_ALL_PREFIXES(Eip2930TransactionUnitTest,
                            GetSignedTransactionAndHash);
 
-  EthTransaction(std::optional<uint256_t> nonce,
+  EthTransaction(uint256_t chain_id,
+                 std::optional<uint256_t> nonce,
                  uint256_t gas_price,
                  uint256_t gas_limit,
                  std::variant<EthAddress, EthContractCreationAddress> to,
@@ -118,7 +119,8 @@ class EthTransaction {
 
   // return rlp([nonce, gasPrice, gasLimit, to, value, data, chainID, 0, 0])
   // Support EIP-155 chain id
-  virtual std::vector<uint8_t> GetMessageToSignImpl(uint256_t chain_id) const;
+  // Must have nonce set.
+  virtual std::vector<uint8_t> GetMessageToSignImpl() const;
 
   // Gas paid for the data.
   virtual uint256_t GetDataFee() const;
@@ -130,6 +132,7 @@ class EthTransaction {
 
   EthTransactionType type_ = EthTransactionType::kLegacy;
 
+  uint256_t chain_id_;
   std::optional<uint256_t> nonce_;
   uint256_t gas_price_;
   uint256_t gas_limit_;
@@ -137,9 +140,11 @@ class EthTransaction {
   uint256_t value_;
   std::vector<uint8_t> data_;
 
-  uint256_t v_ = 0;
-  std::vector<uint8_t> r_;
-  std::vector<uint8_t> s_;
+  std::optional<Secp256k1Signature> signature_;
+
+  // uint256_t v_ = 0;
+  // std::vector<uint8_t> r_;
+  // std::vector<uint8_t> s_;
 };
 
 }  // namespace brave_wallet
