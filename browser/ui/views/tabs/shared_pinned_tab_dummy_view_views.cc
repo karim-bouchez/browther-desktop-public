@@ -126,9 +126,9 @@ void SharedPinnedTabDummyViewViews::Install() {
   // over views::WebView.
   // TODO(sko) We should take split view into account. This is the same problem
   // as with SadTabView.
-  static_cast<BrowserView*>(browser->window())
-      ->contents_web_view()
-      ->SetCrashedOverlayView(this);
+  //   static_cast<BrowserView*>(browser->window())
+  //       ->contents_web_view()
+  //       ->SetCrashedOverlayView(this);
 
   // views::WebView hides the overlay unless web contents is crashed. We should
   // forcibly show this view.
