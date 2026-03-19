@@ -3,12 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <chrome/browser/web_applications/web_app_helpers_unittest.cc>
+#include <components/webapps/browser/web_app_url_config_unittest.cc>
 
-namespace web_app {
+namespace webapps {
 
-TEST(WebAppHelpers, Brave_IsValidWebAppUrl) {
-  EXPECT_TRUE(IsValidWebAppUrl(GURL("chrome://leo-ai")));
+TEST(WebAppUrlConfigTest, Brave_IsUrlEligibleForWebApp) {
+  EXPECT_TRUE(IsUrlEligibleForWebApp(GURL("chrome://leo-ai")));
 }
 
-}  // namespace web_app
+}  // namespace webapps
