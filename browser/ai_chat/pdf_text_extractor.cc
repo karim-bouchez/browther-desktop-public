@@ -261,8 +261,7 @@ void PdfTextExtractor::OnTimeout() {
 }
 
 void PdfTextExtractor::Finish(std::optional<std::string> result) {
-  DVLOG(0) << "PdfTextExtractor: Finish has_result="
-           << result.has_value();
+  DVLOG(0) << "PdfTextExtractor: Finish has_result=" << result.has_value();
   timeout_timer_.Stop();
   Cleanup();
   if (callback_) {

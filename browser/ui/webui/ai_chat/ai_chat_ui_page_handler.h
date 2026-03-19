@@ -8,11 +8,17 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "brave/browser/ai_chat/upload_file_helper.h"
+#include "pdf/buildflags.h"
+
+#if BUILDFLAG(ENABLE_PDF)
+#include "brave/browser/ai_chat/pdf_text_extractor.h"
+#endif
 #include "brave/components/ai_chat/content/browser/ai_chat_tab_helper.h"
 #include "brave/components/ai_chat/core/browser/associated_content_driver.h"
 #include "brave/components/ai_chat/core/browser/conversation_handler.h"
@@ -67,6 +73,9 @@ class AIChatUIPageHandler : public mojom::AIChatUIHandler,
   void ProcessImageFile(const std::vector<uint8_t>& file_data,
                         const std::string& filename,
                         ProcessImageFileCallback callback) override;
+  void ProcessPdfFile(const std::vector<uint8_t>& file_data,
+                      const std::string& filename,
+                      ProcessPdfFileCallback callback) override;
   void GetPluralString(const std::string& key,
                        int32_t count,
                        GetPluralStringCallback callback) override;
@@ -113,6 +122,10 @@ class AIChatUIPageHandler : public mojom::AIChatUIHandler,
   // UploadFileHelper::Observer
   void OnFilesSelected() override;
 
+  void OnFilesUploaded(
+      UploadFileCallback callback,
+      std::optional<std::vector<mojom::UploadedFilePtr>> uploaded_files);
+
   raw_ptr<AIChatTabHelper> active_chat_tab_helper_ = nullptr;
   // TODO(https://github.com/brave/brave-browser/issues/48524): We probably
   // want to reference the TabStripModel so that we can offer the user to
@@ -133,6 +146,11 @@ class AIChatUIPageHandler : public mojom::AIChatUIHandler,
 
   // DataDecoder instance for processing image data
   data_decoder::DataDecoder data_decoder_;
+
+#if BUILDFLAG(ENABLE_PDF)
+  // Active PDF text extractors (owned until extraction completes)
+  std::vector<std::unique_ptr<PdfTextExtractor>> pdf_extractors_;
+#endif
 
   mojo::Receiver<ai_chat::mojom::AIChatUIHandler> receiver_;
   mojo::Remote<ai_chat::mojom::ChatUI> chat_ui_;

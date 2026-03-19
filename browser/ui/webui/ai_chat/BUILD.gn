@@ -43,6 +43,7 @@ source_set("ai_chat") {
     "//components/strings:components_strings",
     "//components/user_prefs",
     "//content/public/browser",
+    "//pdf:buildflags",
     "//ui/webui",
   ]
 
