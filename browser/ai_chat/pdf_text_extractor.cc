@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "base/barrier_callback.h"
-#include "base/types/fixed_array.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -16,6 +15,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "base/types/fixed_array.h"
 #include "components/pdf/browser/pdf_document_helper.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"

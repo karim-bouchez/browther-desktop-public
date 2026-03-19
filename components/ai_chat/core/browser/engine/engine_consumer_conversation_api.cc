@@ -343,13 +343,25 @@ void EngineConsumerConversationAPI::GenerateAssistantResponse(
       std::vector<std::string> uploaded_images;
       std::vector<std::string> screenshot_images;
       std::vector<std::string> uploaded_pdfs;
+      std::vector<std::string> pdf_extracted_texts;
       for (const auto& uploaded_file : message->uploaded_files.value()) {
         if (uploaded_file->type == mojom::UploadedFileType::kScreenshot) {
           screenshot_images.emplace_back(GetImageDataURL(uploaded_file->data));
         } else if (uploaded_file->type == mojom::UploadedFileType::kImage) {
           uploaded_images.emplace_back(GetImageDataURL(uploaded_file->data));
         } else if (uploaded_file->type == mojom::UploadedFileType::kPdf) {
-          uploaded_pdfs.emplace_back(GetPdfDataURL(uploaded_file->data));
+          std::string pdf_filename = uploaded_file->filename.empty()
+                                         ? "uploaded.pdf"
+                                         : uploaded_file->filename;
+          if (uploaded_file->extracted_text.has_value() &&
+              !uploaded_file->extracted_text->empty()) {
+            // Prefer extracted text over raw PDF bytes.
+            pdf_extracted_texts.emplace_back("[PDF: " + pdf_filename + "]\n" +
+                                             *uploaded_file->extracted_text);
+          } else {
+            // Fall back to raw PDF bytes when no text was extracted.
+            uploaded_pdfs.emplace_back(GetPdfDataURL(uploaded_file->data));
+          }
         }
       }
       if (!uploaded_images.empty()) {
@@ -361,6 +373,11 @@ void EngineConsumerConversationAPI::GenerateAssistantResponse(
         conversation.emplace_back(ConversationEventRole::kUser,
                                   ConversationEventType::kPageScreenshot,
                                   std::move(screenshot_images));
+      }
+      if (!pdf_extracted_texts.empty()) {
+        conversation.emplace_back(ConversationEventRole::kUser,
+                                  ConversationEventType::kChatMessage,
+                                  std::move(pdf_extracted_texts));
       }
       if (!uploaded_pdfs.empty()) {
         conversation.emplace_back(ConversationEventRole::kUser,
