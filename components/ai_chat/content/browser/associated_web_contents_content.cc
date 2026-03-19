@@ -348,7 +348,7 @@ void AssociatedWebContentsContent::OnScreenshotsCaptured(
           absl::StrFormat("%s%i.png", mojom::kFullPageScreenshotPrefix,
                           screenshot_index++),
           screenshot_size, std::move(screenshot),
-          mojom::UploadedFileType::kScreenshot));
+          mojom::UploadedFileType::kScreenshot, std::nullopt));
     }
     std::move(callback).Run(std::move(screenshots));
   } else {

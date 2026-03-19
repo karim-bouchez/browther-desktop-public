@@ -151,6 +151,7 @@ struct UploadedFile {
   uint32 filesize;
   array<uint8> data;
   UploadedFileType type;
+  string? extracted_text;
 };
 
 // An entry of an executed skill to be stored inside conversation entry

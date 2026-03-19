@@ -161,6 +161,24 @@ bool MigrateFrom8to9(sql::Database* db) {
   return statement.is_valid() && statement.Run();
 }
 
+bool MigrateFrom9to10(sql::Database* db) {
+  static constexpr char kCheckColumnQuery[] =
+      "PRAGMA table_info(conversation_entry_uploaded_files)";
+  sql::Statement check_statement(db->GetUniqueStatement(kCheckColumnQuery));
+  while (check_statement.Step()) {
+    if (check_statement.ColumnString(1) == "extracted_text") {
+      return true;
+    }
+  }
+
+  static constexpr char kAddExtractedTextColumnQuery[] =
+      "ALTER TABLE conversation_entry_uploaded_files"
+      " ADD COLUMN extracted_text BLOB DEFAULT NULL";
+  sql::Statement statement(
+      db->GetUniqueStatement(kAddExtractedTextColumnQuery));
+  return statement.is_valid() && statement.Run();
+}
+
 }  // namespace
 
 // These database versions should roll together unless we develop migrations.
@@ -173,7 +191,7 @@ constexpr int kLowestSupportedDatabaseVersion = 1;
 constexpr int kCompatibleDatabaseVersionNumber = 7;
 
 // Current version of the database. Increase if breaking changes are made.
-constexpr int kCurrentDatabaseVersion = 9;
+constexpr int kCurrentDatabaseVersion = 10;
 
 AIChatDatabase::AIChatDatabase(const base::FilePath& db_file_path,
                                os_crypt_async::Encryptor encryptor)
@@ -308,6 +326,15 @@ sql::InitStatus AIChatDatabase::InitInternal() {
                             meta_table.SetVersionNumber(9);
       }
       current_version = 9;
+    }
+    if (migration_success && current_version == 9) {
+      migration_success = MigrateFrom9to10(&GetDB());
+      if (migration_success) {
+        migration_success = meta_table.SetCompatibleVersionNumber(
+                                kCompatibleDatabaseVersionNumber) &&
+                            meta_table.SetVersionNumber(10);
+      }
+      current_version = 10;
     }
 
     // Migration unsuccessful, raze the database and re-init
@@ -638,11 +665,11 @@ std::vector<mojom::ConversationTurnPtr> AIChatDatabase::GetConversationEntries(
     }
 
     // Uploaded files
-    sql::Statement uploaded_file_statement(
-        GetDB().GetUniqueStatement("SELECT filename, filesize, data, type"
-                                   " FROM conversation_entry_uploaded_files"
-                                   " WHERE conversation_entry_uuid=?"
-                                   " ORDER BY file_order ASC"));
+    sql::Statement uploaded_file_statement(GetDB().GetUniqueStatement(
+        "SELECT filename, filesize, data, type, extracted_text"
+        " FROM conversation_entry_uploaded_files"
+        " WHERE conversation_entry_uuid=?"
+        " ORDER BY file_order ASC"));
     uploaded_file_statement.BindString(0, entry_uuid);
 
     while (uploaded_file_statement.Step()) {
@@ -655,11 +682,16 @@ std::vector<mojom::ConversationTurnPtr> AIChatDatabase::GetConversationEntries(
       std::vector<uint8_t> data(raw_bytes.begin(), raw_bytes.end());
       auto type = static_cast<mojom::UploadedFileType>(
           uploaded_file_statement.ColumnInt(3));
+      std::optional<std::string> extracted_text;
+      if (uploaded_file_statement.GetColumnType(4) != sql::ColumnType::kNull) {
+        extracted_text = DecryptColumnToString(uploaded_file_statement, 4);
+      }
       if (!entry->uploaded_files) {
         entry->uploaded_files = std::vector<mojom::UploadedFilePtr>{};
       }
       entry->uploaded_files->emplace_back(mojom::UploadedFile::New(
-          std::move(filename), filesize, std::move(data), type));
+          std::move(filename), filesize, std::move(data), type,
+          std::move(extracted_text)));
     }
 
     // root entry or edited entry
@@ -1142,8 +1174,8 @@ bool AIChatDatabase::AddConversationEntry(
           SQL_FROM_HERE,
           "INSERT INTO conversation_entry_uploaded_files"
           "(file_order, filename, filesize, data, type,"
-          " conversation_entry_uuid)"
-          " VALUES(?, ?, ?, ?, ?, ?)"));
+          " extracted_text, conversation_entry_uuid)"
+          " VALUES(?, ?, ?, ?, ?, ?, ?)"));
       CHECK(uploaded_file_statement.is_valid());
       uploaded_file_statement.BindInt(0, static_cast<int>(i));
       if (!BindAndEncryptString(uploaded_file_statement, 1,
@@ -1157,7 +1189,15 @@ bool AIChatDatabase::AddConversationEntry(
         return false;
       }
       uploaded_file_statement.BindInt(4, static_cast<int>(uploaded_file->type));
-      uploaded_file_statement.BindString(5, entry->uuid.value());
+      if (uploaded_file->extracted_text.has_value()) {
+        if (!BindAndEncryptString(uploaded_file_statement, 5,
+                                  *uploaded_file->extracted_text)) {
+          return false;
+        }
+      } else {
+        uploaded_file_statement.BindNull(5);
+      }
+      uploaded_file_statement.BindString(6, entry->uuid.value());
       uploaded_file_statement.Run();
     }
   }
@@ -1783,6 +1823,8 @@ bool AIChatDatabase::CreateSchema() {
       "data BLOB NOT NULL,"
       // mojom::UploadedFileType
       "type INTEGER NOT NULL,"
+      // encrypted extracted text (nullable, for PDFs)
+      "extracted_text BLOB DEFAULT NULL,"
       "PRIMARY KEY(conversation_entry_uuid, file_order)"
       ")";
   CHECK(GetDB().IsSQLValid(kCreateUploadedFilesTableQuery));
