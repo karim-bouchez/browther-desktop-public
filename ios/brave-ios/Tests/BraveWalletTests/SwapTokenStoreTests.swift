@@ -751,7 +751,7 @@ class SwapStoreTests: XCTestCase {
       ethTxManagerProxy, solTxManagerProxy, mockAssetManager
     ) = setupServices()
     var submittedParams: BraveWallet.NewEvmTransactionParams?
-    txService._addUnapprovedEvmTransaction = { params, completion in
+    txService.addUnapprovedEvmTransaction = { params, completion in
       submittedParams = params
       completion(true, "tx-meta-id", "")
     }
@@ -783,7 +783,7 @@ class SwapStoreTests: XCTestCase {
       ethTxManagerProxy, solTxManagerProxy, mockAssetManager
     ) = setupServices()
     var submittedParams: BraveWallet.NewEvmTransactionParams?
-    txService._addUnapprovedEvmTransaction = { params, completion in
+    txService.addUnapprovedEvmTransaction = { params, completion in
       submittedParams = params
       completion(true, "tx-meta-id", "")
     }
@@ -821,7 +821,7 @@ class SwapStoreTests: XCTestCase {
       ethTxManagerProxy, solTxManagerProxy, mockAssetManager
     ) = setupServices()
     var submittedParams: BraveWallet.NewEvmTransactionParams?
-    txService._addUnapprovedEvmTransaction = { params, completion in
+    txService.addUnapprovedEvmTransaction = { params, completion in
       submittedParams = params
       completion(true, "tx-meta-id", "")
     }

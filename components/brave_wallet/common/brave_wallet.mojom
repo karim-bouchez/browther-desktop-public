@@ -1643,8 +1643,6 @@ struct TxData {
   string to;
   string value;
   array<uint8> data;
-  bool sign_only;
-  string? signed_transaction;
 };
 
 struct GasEstimation1559 {

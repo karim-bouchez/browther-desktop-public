@@ -52,6 +52,7 @@ class FilTxManager;
 class ZCashTxManager;
 class CardanoTxManager;
 class PolkadotTxManager;
+class SolanaTransaction;
 
 class TxService : public mojom::TxService,
                   public mojom::EthTxManagerProxy,
@@ -75,6 +76,25 @@ class TxService : public mojom::TxService,
   template <class T>
   void Bind(mojo::PendingReceiver<T> receiver);
 
+  void AddUnapprovedEvmDappTransaction(
+      mojom::TxData1559Ptr tx_data_1559,
+      mojom::AccountIdPtr from,
+      const url::Origin& origin,
+      bool sign_only,
+      AddUnapprovedTransactionCallback callback);
+  void AddUnapprovedEvmDappTransaction(
+      mojom::TxDataPtr tx_data,
+      mojom::AccountIdPtr from,
+      const url::Origin& origin,
+      bool sign_only,
+      AddUnapprovedTransactionCallback callback);
+  void AddUnapprovedSolanaDappTransaction(
+      mojom::SolanaTxDataPtr solana_tx_data,
+      const std::string& chain_id,
+      mojom::AccountIdPtr from,
+      const url::Origin& origin,
+      AddUnapprovedTransactionCallback callback);
+
   // mojom::TxService
   void AddUnapprovedTransaction(
       mojom::TxDataUnionPtr tx_data_union,
@@ -82,20 +102,9 @@ class TxService : public mojom::TxService,
       mojom::AccountIdPtr from,
       mojom::SwapInfoPtr swap_info,
       AddUnapprovedTransactionCallback callback) override;
-  void AddUnapprovedTransactionWithOrigin(
-      mojom::TxDataUnionPtr tx_data_union,
-      const std::string& chain_id,
-      mojom::AccountIdPtr from,
-      mojom::SwapInfoPtr swap_info,
-      const std::optional<url::Origin>& origin,
-      AddUnapprovedTransactionCallback callback);
   void AddUnapprovedEvmTransaction(
       mojom::NewEvmTransactionParamsPtr params,
       AddUnapprovedEvmTransactionCallback callback) override;
-  void AddUnapprovedEvmTransactionWithOrigin(
-      mojom::NewEvmTransactionParamsPtr params,
-      const std::optional<url::Origin>& origin,
-      AddUnapprovedEvmTransactionCallback callback);
   void AddUnapprovedBitcoinTransaction(
       mojom::NewBitcoinTransactionParamsPtr params,
       AddUnapprovedBitcoinTransactionCallback callback) override;
@@ -121,6 +130,8 @@ class TxService : public mojom::TxService,
                           GetTransactionInfoCallback) override;
   mojom::TransactionInfoPtr GetTransactionInfoSync(
       mojom::CoinType coin_type,
+      const std::string& tx_meta_id);
+  std::optional<std::string> GetEthSignedTransaction(
       const std::string& tx_meta_id);
   void GetAllTransactionInfo(mojom::CoinType coin_type,
                              const std::optional<std::string>& chain_id,

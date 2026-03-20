@@ -47,16 +47,21 @@ class EthTxManager : public TxManager, public EthBlockTracker::Observer {
 
   void AddUnapprovedEvmTransaction(
       mojom::NewEvmTransactionParamsPtr params,
-      const std::optional<url::Origin>& origin,
       AddUnapprovedEvmTransactionCallback callback);
+  void AddUnapprovedEvmDappTransaction(
+      mojom::TxData1559Ptr tx_data_1559,
+      mojom::AccountIdPtr from,
+      const url::Origin& origin,
+      bool sign_only,
+      AddUnapprovedTransactionCallback callback);
+  void AddUnapprovedEvmDappTransaction(
+      mojom::TxDataPtr tx_data,
+      mojom::AccountIdPtr from,
+      const url::Origin& origin,
+      bool sign_only,
+      AddUnapprovedTransactionCallback callback);
 
   // TxManager
-  void AddUnapprovedTransaction(const std::string& chain_id,
-                                mojom::TxDataUnionPtr tx_data_union,
-                                const mojom::AccountIdPtr& from,
-                                const std::optional<url::Origin>& origin,
-                                mojom::SwapInfoPtr swap_info,
-                                AddUnapprovedTransactionCallback) override;
   void ApproveTransaction(const std::string& tx_meta_id,
                           ApproveTransactionCallback) override;
   void SpeedupOrCancelTransaction(
@@ -151,6 +156,8 @@ class EthTxManager : public TxManager, public EthBlockTracker::Observer {
   // Gas estimation API via eth_feeHistory API
   void GetGasEstimation1559(const std::string& chain_id,
                             GetGasEstimation1559Callback callback);
+  std::optional<std::string> GetSignedTransaction(
+      const std::string& tx_meta_id);
 
   static bool ValidateTxData(const mojom::TxDataPtr& tx_data,
                              std::string* error);
@@ -166,16 +173,25 @@ class EthTxManager : public TxManager, public EthBlockTracker::Observer {
 
   mojom::CoinType GetCoinType() const override;
 
-  void AddUnapprovedTransaction(mojom::TxDataPtr tx_data,
+  void AddUnapprovedTransaction(const std::string& chain_id,
+                                mojom::TxDataUnionPtr tx_data_union,
                                 const mojom::AccountIdPtr& from,
-                                const url::Origin& origin,
+                                const std::optional<url::Origin>& origin,
                                 mojom::SwapInfoPtr swap_info,
-                                AddUnapprovedTransactionCallback);
-  void AddUnapproved1559Transaction(mojom::TxData1559Ptr tx_data,
-                                    const mojom::AccountIdPtr& from,
-                                    const url::Origin& origin,
-                                    mojom::SwapInfoPtr swap_info,
-                                    AddUnapprovedTransactionCallback);
+                                AddUnapprovedTransactionCallback) override;
+
+  void AddUnapprovedTransactionInternal(mojom::TxDataPtr tx_data,
+                                        const mojom::AccountIdPtr& from,
+                                        const url::Origin& origin,
+                                        bool sign_only,
+                                        mojom::SwapInfoPtr swap_info,
+                                        AddUnapprovedTransactionCallback);
+  void AddUnapproved1559TransactionInternal(mojom::TxData1559Ptr tx_data,
+                                            const mojom::AccountIdPtr& from,
+                                            const url::Origin& origin,
+                                            bool sign_only,
+                                            mojom::SwapInfoPtr swap_info,
+                                            AddUnapprovedTransactionCallback);
 
   void NotifyUnapprovedTxUpdated(TxMeta* meta);
   void OnConnectionError();

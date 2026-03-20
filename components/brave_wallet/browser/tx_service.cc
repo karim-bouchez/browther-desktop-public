@@ -231,18 +231,7 @@ void TxService::AddUnapprovedTransaction(
       << "Wallet UI must use AddUnapprovedZCashTransaction";
   CHECK_NE(from->coin, mojom::CoinType::ADA)
       << "Wallet UI must use AddUnapprovedCardanoTransaction";
-  AddUnapprovedTransactionWithOrigin(std::move(tx_data_union), chain_id,
-                                     std::move(from), std::move(swap_info),
-                                     std::nullopt, std::move(callback));
-}
 
-void TxService::AddUnapprovedTransactionWithOrigin(
-    mojom::TxDataUnionPtr tx_data_union,
-    const std::string& chain_id,
-    mojom::AccountIdPtr from,
-    mojom::SwapInfoPtr swap_info,
-    const std::optional<url::Origin>& origin,
-    AddUnapprovedTransactionCallback callback) {
   if (!account_resolver_delegate_->ValidateAccountId(from)) {
     std::move(callback).Run(
         false, "",
@@ -259,20 +248,65 @@ void TxService::AddUnapprovedTransactionWithOrigin(
 
   auto coin_type = GetCoinTypeFromTxDataUnion(*tx_data_union);
   GetTxManager(coin_type)->AddUnapprovedTransaction(
-      chain_id, std::move(tx_data_union), from, origin, std::move(swap_info),
+      chain_id, std::move(tx_data_union), from, std::nullopt,
+      std::move(swap_info), std::move(callback));
+}
+
+void TxService::AddUnapprovedEvmDappTransaction(
+    mojom::TxData1559Ptr tx_data_1559,
+    mojom::AccountIdPtr from,
+    const url::Origin& origin,
+    bool sign_only,
+    AddUnapprovedTransactionCallback callback) {
+  if (BlockchainRegistry::GetInstance()->IsOfacAddress(
+          tx_data_1559->base_data->to)) {
+    std::move(callback).Run(
+        false, "", l10n_util::GetStringUTF8(IDS_WALLET_OFAC_RESTRICTION));
+    return;
+  }
+
+  GetEthTxManager()->AddUnapprovedEvmDappTransaction(
+      std::move(tx_data_1559), std::move(from), origin, sign_only,
       std::move(callback));
+}
+
+void TxService::AddUnapprovedEvmDappTransaction(
+    mojom::TxDataPtr tx_data,
+    mojom::AccountIdPtr from,
+    const url::Origin& origin,
+    bool sign_only,
+    AddUnapprovedTransactionCallback callback) {
+  if (BlockchainRegistry::GetInstance()->IsOfacAddress(tx_data->to)) {
+    std::move(callback).Run(
+        false, "", l10n_util::GetStringUTF8(IDS_WALLET_OFAC_RESTRICTION));
+    return;
+  }
+
+  GetEthTxManager()->AddUnapprovedEvmDappTransaction(
+      std::move(tx_data), std::move(from), origin, sign_only,
+      std::move(callback));
+}
+
+void TxService::AddUnapprovedSolanaDappTransaction(
+    mojom::SolanaTxDataPtr solana_tx_data,
+    const std::string& chain_id,
+    mojom::AccountIdPtr from,
+    const url::Origin& origin,
+    AddUnapprovedTransactionCallback callback) {
+  if (BlockchainRegistry::GetInstance()->IsOfacAddress(
+          solana_tx_data->to_wallet_address)) {
+    std::move(callback).Run(
+        false, "", l10n_util::GetStringUTF8(IDS_WALLET_OFAC_RESTRICTION));
+    return;
+  }
+
+  GetSolanaTxManager()->AddUnapprovedTransaction(
+      chain_id, mojom::TxDataUnion::NewSolanaTxData(std::move(solana_tx_data)),
+      from, origin, nullptr, std::move(callback));
 }
 
 void TxService::AddUnapprovedEvmTransaction(
     mojom::NewEvmTransactionParamsPtr params,
-    AddUnapprovedEvmTransactionCallback callback) {
-  AddUnapprovedEvmTransactionWithOrigin(std::move(params), std::nullopt,
-                                        std::move(callback));
-}
-
-void TxService::AddUnapprovedEvmTransactionWithOrigin(
-    mojom::NewEvmTransactionParamsPtr params,
-    const std::optional<url::Origin>& origin,
     AddUnapprovedEvmTransactionCallback callback) {
   CHECK_EQ(params->from->coin, mojom::CoinType::ETH);
   if (!account_resolver_delegate_->ValidateAccountId(params->from)) {
@@ -288,7 +322,7 @@ void TxService::AddUnapprovedEvmTransactionWithOrigin(
     return;
   }
 
-  GetEthTxManager()->AddUnapprovedEvmTransaction(std::move(params), origin,
+  GetEthTxManager()->AddUnapprovedEvmTransaction(std::move(params),
                                                  std::move(callback));
 }
 
@@ -400,6 +434,11 @@ mojom::TransactionInfoPtr TxService::GetTransactionInfoSync(
     mojom::CoinType coin_type,
     const std::string& tx_meta_id) {
   return GetTxManager(coin_type)->GetTransactionInfo(tx_meta_id);
+}
+
+std::optional<std::string> TxService::GetEthSignedTransaction(
+    const std::string& tx_meta_id) {
+  return GetEthTxManager()->GetSignedTransaction(tx_meta_id);
 }
 
 void TxService::GetAllTransactionInfo(
