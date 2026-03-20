@@ -167,7 +167,7 @@ public class BraveNewTabPage extends NewTabPage {
         LayoutInflater inflater = LayoutInflater.from(activity);
         mNewTabPageLayout = (NewTabPageLayout) inflater.inflate(R.layout.new_tab_page_layout, null);
         mNewTabPageCoordinator =
-                new NewTabPageCoordinator(mNewTabPageManager, activity, mNewTabPageLayout);
+                new BraveNewTabPageCoordinator(mNewTabPageManager, activity, mNewTabPageLayout);
 
         // No-op stub to deal with non-null requirement
         FeedSurfaceCoordinator.ActionDelegateFactory actionDelegate =
