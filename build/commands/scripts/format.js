@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process'
 
 import config from '../lib/config.js'
 import util from '../lib/util.js'
-import Log from '../lib/logging.js'
+import * as Log from '../lib/log.ts'
 
 program
   .description(
@@ -123,8 +123,10 @@ async function runFormat(options = {}) {
     if (clFormatResult.status === 2 && options.dryRun) {
       formatIssues.push(clFormatOutput)
     } else if (clFormatResult.status !== 0) {
-      Log.error('Fatal: git cl format failed:\n' + clFormatOutput)
-      process.exit(clFormatResult.status)
+      Log.fatal(
+        'Fatal: git cl format failed:\n' + clFormatOutput,
+        clFormatResult.status,
+      )
     }
   }
 
