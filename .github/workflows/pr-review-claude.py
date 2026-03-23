@@ -5,19 +5,27 @@
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 """Run Claude-driven PR review in CI (Docker/GitHub Actions).
 
-Fetches PR context and diff via gh, sends to Anthropic API with the review
-skill instructions, and posts the result as a GitHub review: one summary body
-plus multiple inline comments on the code (when the model provides them).
+Fetches PR context and diff via gh, sends to Anthropic API with the **review-prs**
+skill instructions (.claude/skills/review-prs/SKILL.md), and posts the result as
+a GitHub review: one summary body plus multiple inline comments (when the model
+provides them).
+
+This is a single-pass CI analogue of `/review-prs … auto reviewer-priority`: it
+does not run prepare-review.py, subagents, or collect-results.py from that skill.
 
 Usage:
   python3 pr-review-claude.py <pr_number> [repo]
   repo defaults to brave/brave-core.
 
-Environment:
-  GH_TOKEN          - GitHub token (with pull request read + comment write)
-  ANTHROPIC_API_KEY - Anthropic API key for Claude
+Credentials (in order):
+  1. If stdin is not a TTY, read two lines: GitHub token, then Anthropic API key
+     (recommended for Docker so secrets are not passed via -e / process listings).
+  2. Otherwise use environment variables:
+       GH_TOKEN          - GitHub token (pull request read + comment write)
+       ANTHROPIC_API_KEY - Anthropic API key for Claude
 """
 
+import argparse
 import json
 import os
 import shlex
@@ -34,14 +42,29 @@ except ImportError:
 REPO_DEFAULT = "brave/brave-core"
 
 
+def _resolve_credentials() -> tuple[str, str]:
+    """Prefer stdin (two lines: GH token, Anthropic key) when piped; else env vars."""
+    if not sys.stdin.isatty():
+        line1 = sys.stdin.readline()
+        line2 = sys.stdin.readline()
+        if line1 and line2:
+            return (
+                line1.rstrip("\r\n"),
+                line2.rstrip("\r\n"),
+            )
+    gh = os.environ.get("GH_TOKEN", "")
+    ak = os.environ.get("ANTHROPIC_API_KEY", "")
+    return gh, ak
+
+
 def _skill_path() -> Path:
-    """Review skill: baked into the CI image (trusted), or next to the repo in dev."""
-    bundled = Path("/opt/pr-review-claude/skills/review/SKILL.md")
+    """review-prs skill: baked into the CI image (trusted), or next to the repo in dev."""
+    bundled = Path("/opt/pr-review-claude/skills/review-prs/SKILL.md")
     if bundled.exists():
         return bundled
-    # Local dev: script at .github/workflows/pr-review-claude.py → repo root is parent^3
+    # Local dev: script at .github/workflows/pr-review-claude.py → repo root is .parent.parent.parent
     repo_root = Path(__file__).resolve().parent.parent.parent
-    return repo_root / ".claude" / "skills" / "review" / "SKILL.md"
+    return repo_root / ".claude" / "skills" / "review-prs" / "SKILL.md"
 
 
 REVIEW_DISCLAIMER = (
@@ -59,6 +82,16 @@ def _finalize_review_body(body: str) -> str:
     return REVIEW_DISCLAIMER + body
 
 
+def _body_for_posting(body: str, *, has_inline_comments: bool) -> str:
+    """Build the final body we send to GitHub, always keeping disclaimer semantics."""
+    finalized = _finalize_review_body(body)
+    if finalized:
+        return finalized
+    if has_inline_comments:
+        return REVIEW_DISCLAIMER + "See inline comments."
+    return "No review content."
+
+
 def _cmd_error_detail(stderr: str | None, stdout: str | None) -> str:
     parts = []
     serr = (stderr or "").strip()
@@ -70,21 +103,25 @@ def _cmd_error_detail(stderr: str | None, stdout: str | None) -> str:
     return "; ".join(parts) if parts else "(no stderr or stdout captured)"
 
 
-def _gh_env():
-    env = {**os.environ}
-    if "GH_TOKEN" in env:
-        env["GH_TOKEN"] = os.environ["GH_TOKEN"]
-    return env
+def _gh_env(gh_token: str):
+    # gh reads GH_TOKEN from the child env; we keep token in locals only (stdin path never sets os.environ).
+    return {**os.environ, "GH_TOKEN": gh_token}
 
 
-def _run_gh_command(cmd: list[str], *, stdin: str | None = None, capture: bool = True):
+def _run_gh_command(
+    cmd: list[str],
+    *,
+    gh_token: str,
+    stdin: str | None = None,
+    capture: bool = True,
+):
     """Run gh; always capture stderr/stdout so failures are diagnosable in CI."""
     try:
         result = subprocess.run(
             cmd,
             input=stdin,
             text=True,
-            env=_gh_env(),
+            env=_gh_env(gh_token),
             capture_output=True,
             check=True,
         )
@@ -96,16 +133,20 @@ def _run_gh_command(cmd: list[str], *, stdin: str | None = None, capture: bool =
     return result.stdout.strip() if capture else None
 
 
-def run_gh(*args, repo: str, capture=True):
+def run_gh(*args, repo: str, gh_token: str, capture=True):
     cmd = ["gh", *args, "-R", repo]
-    return _run_gh_command(cmd, capture=capture)
+    return _run_gh_command(cmd, gh_token=gh_token, capture=capture)
 
 
-def gather_pr_context(pr_number: str, repo: str) -> dict:
+def gather_pr_context(pr_number: str, repo: str, *, gh_token: str) -> dict:
     """Fetch PR title, body, and diff via gh."""
-    out = run_gh("pr", "view", pr_number, "--json", "title,body,author", repo=repo)
+    out = run_gh(
+        "pr", "view", pr_number, "--json", "title,body,author",
+        repo=repo,
+        gh_token=gh_token,
+    )
     meta = json.loads(out)
-    diff = run_gh("pr", "diff", pr_number, repo=repo)
+    diff = run_gh("pr", "diff", pr_number, repo=repo, gh_token=gh_token)
     return {
         "title": meta.get("title", ""),
         "body": meta.get("body") or "",
@@ -115,39 +156,40 @@ def gather_pr_context(pr_number: str, repo: str) -> dict:
 
 
 def load_skill_content() -> str:
-    """Load the review skill markdown (for system prompt)."""
+    """Load the review-prs skill markdown (for system prompt)."""
     path = _skill_path()
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def run_review(pr_number: str, repo: str) -> str:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY is not set")
-
-    ctx = gather_pr_context(pr_number, repo)
+def run_review(pr_number: str, repo: str, *, gh_token: str, api_key: str) -> str:
+    ctx = gather_pr_context(pr_number, repo, gh_token=gh_token)
     skill_content = load_skill_content()
 
     system = (
-        "You are performing a PR code review for brave-core. Follow the Code Review Skill instructions below. "
-        "You are running in CI: you cannot run bash commands or read additional files. Use ONLY the PR title, body, and diff provided. "
+        "You are performing a PR best-practices review for brave-core, aligned with the **review-prs** skill below "
+        "(same scope as `/review-prs … auto reviewer-priority`: only violations of existing documented best practices; "
+        "NEVER create or modify best-practice rules or docs during this run).\n\n"
+        "**CI constraints:** You cannot run bash, prepare-review.py, collect-results.py, subagents, or read other files. "
+        "Use ONLY the PR title, body, and diff in the user message. CI will post the review to GitHub (you must not claim to post yourself).\n\n"
         "Output a single JSON object with two keys: 'body' and 'comments'. "
-        "'body' (string): full review in markdown (Summary, Context, Analysis, Best Practices, Verdict: PASS/FAIL, Confidence). "
+        "'body' (string): full review in markdown (summary, best-practice findings, verdict if appropriate). "
         "Do not include a review disclaimer in 'body'; CI adds the standard disclaimer when posting. "
-        "'comments' (array): for each issue that applies to a specific line in the diff, one object with 'path' (file path as in the diff), 'line' (line number in the new file), 'body' (1-3 sentence comment). "
-        "Put issues that are not tied to a specific line in the body only. Output only the JSON object, no surrounding text or markdown code fence.\n\n"
+        "'comments' (array): for each issue tied to a specific line, one object with 'path' (as in the diff), "
+        "'line' (line number in the new file), 'body' (1-3 sentences). Put non-line-specific issues in 'body' only. "
+        "Output only the JSON object, no surrounding text or markdown code fence.\n\n"
         "---\n"
-        + (skill_content if skill_content else "Review the diff for correctness, root cause analysis, and best practices.")
+        + (skill_content if skill_content else "Review the diff against documented best practices only.")
     )
 
     user_content = (
-        f"Review this pull request.\n\n"
-        f"**Repo**: {repo}\n**PR**: #{pr_number}\n**Title**: {ctx['title']}\n**Author**: @{ctx['author']}\n\n"
+        f"Invoke as for review-prs: single PR #{pr_number}, open, auto, reviewer-priority (CI headless).\n\n"
+        f"**Repo**: {repo}\n**PR**: [#{pr_number}](https://github.com/{repo}/pull/{pr_number})\n"
+        f"**Title**: {ctx['title']}\n**Author**: @{ctx['author']}\n\n"
         f"**PR body:**\n```\n{ctx['body'][:15000]}\n```\n\n"
         f"**Diff:**\n```diff\n{ctx['diff'][:180000]}\n```\n\n"
-        "Produce the review as a JSON object with 'body' (full markdown report) and 'comments' (array of {path, line, body} for inline comments)."
+        "Produce the review as a JSON object with 'body' and 'comments' (array of {path, line, body}) for inline comments."
     )
 
     client = anthropic.Anthropic(api_key=api_key)
@@ -218,46 +260,86 @@ def _parse_review_response(raw: str) -> tuple[str, list[dict]]:
         return _finalize_review_body(raw), []
 
 
-def post_review(pr_number: str, repo: str, body: str, comments: list[dict]) -> None:
+def post_review(
+    pr_number: str,
+    repo: str,
+    body: str,
+    comments: list[dict],
+    *,
+    gh_token: str,
+) -> None:
     """Post as a GitHub review (body + inline comments) or a single PR comment if no inlines."""
+    posted_body = _body_for_posting(body, has_inline_comments=bool(comments))
     if comments:
         payload = {
             "event": "COMMENT",
-            "body": body or "See inline comments.",
+            "body": posted_body,
             "comments": comments,
         }
         cmd = [
             "gh", "api", f"repos/{repo}/pulls/{pr_number}/reviews",
             "--method", "POST", "-R", repo, "--input", "-",
         ]
-        _run_gh_command(cmd, stdin=json.dumps(payload), capture=False)
+        _run_gh_command(
+            cmd,
+            gh_token=gh_token,
+            stdin=json.dumps(payload),
+            capture=False,
+        )
     else:
-        run_gh("pr", "comment", pr_number, "-b", body or "No review content.", repo=repo, capture=False)
+        run_gh(
+            "pr",
+            "comment",
+            pr_number,
+            "-b",
+            posted_body,
+            repo=repo,
+            gh_token=gh_token,
+            capture=False,
+        )
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: pr-review-claude.py <pr_number> [repo]", file=sys.stderr)
-        sys.exit(2)
-    pr_number = sys.argv[1].strip()
-    repo = sys.argv[2].strip() if len(sys.argv) > 2 else REPO_DEFAULT
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run Claude-driven PR review in CI.",
+    )
+    parser.add_argument("pr_number", help="Pull request number")
+    parser.add_argument("repo", nargs="?", default=REPO_DEFAULT, help="GitHub repo (owner/name)")
+    return parser.parse_args(argv)
 
-    if not os.environ.get("GH_TOKEN"):
-        print("GH_TOKEN is not set", file=sys.stderr)
-        sys.exit(1)
+
+def Main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    pr_number = args.pr_number.strip()
+    repo = args.repo.strip()
+
+    gh_token, api_key = _resolve_credentials()
+    if not gh_token:
+        print(
+            "GitHub token missing (stdin line 1 or GH_TOKEN)",
+            file=sys.stderr,
+        )
+        return 1
+    if not api_key:
+        print(
+            "Anthropic API key missing (stdin line 2 or ANTHROPIC_API_KEY)",
+            file=sys.stderr,
+        )
+        return 1
 
     try:
-        raw = run_review(pr_number, repo)
+        raw = run_review(pr_number, repo, gh_token=gh_token, api_key=api_key)
         body, comments = _parse_review_response(raw)
-        post_review(pr_number, repo, body, comments)
+        post_review(pr_number, repo, body, comments, gh_token=gh_token)
         if comments:
             print(f"Posted review with {len(comments)} inline comment(s) on PR #{pr_number}")
         else:
             print("Posted review comment on PR #" + pr_number)
+        return 0
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(Main())
