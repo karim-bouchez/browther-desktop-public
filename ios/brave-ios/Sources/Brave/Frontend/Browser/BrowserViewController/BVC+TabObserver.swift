@@ -252,17 +252,19 @@ extension BrowserViewController: TabObserver {
       return
     }
 
-    if let url = error.userInfo[NSURLErrorFailingURLErrorKey] as? URL {
-      // Check for invalid upgrade to https
-      if url.scheme == "https",  // verify failing url was https
-        let response = handleInvalidHTTPSUpgrade(
-          tab: tab,
-          responseURL: url
-        )
-      {
-        // load original or strict mode interstitial
-        tab.loadRequest(response)
-        return
+    if error.isWKWebViewSSLCertError {
+      if let url = error.userInfo[NSURLErrorFailingURLErrorKey] as? URL {
+        // Check for invalid upgrade to https
+        if url.scheme == "https",  // verify failing url was https
+          let response = handleInvalidHTTPSUpgrade(
+            tab: tab,
+            responseURL: url
+          )
+        {
+          // load original or strict mode interstitial
+          tab.loadRequest(response)
+          return
+        }
       }
     }
   }
@@ -486,3 +488,28 @@ extension BrowserViewController {
       as? Web3NameServiceScriptHandler)?.delegate = self
   }
 }
+
+//extension NSError {
+//  var isWKWebViewSSLCertError: Bool {
+//    // web::IsWKWebViewSSLCertError
+//    guard self.domain == NSURLErrorDomain else { return false }
+//    switch self.code {
+//    case NSURLErrorServerCertificateHasBadDate,
+//      NSURLErrorServerCertificateUntrusted,
+//      NSURLErrorServerCertificateHasUnknownRoot,
+//    NSURLErrorServerCertificateNotYetValid:
+//      return true
+//    case NSURLErrorSecureConnectionFailed:
+//      // Although the finer-grained errors above exist, iOS never uses them
+//      // and instead signals NSURLErrorSecureConnectionFailed for both
+//      // certificate failures and other SSL connection failures. Instead, check
+//      // if the error has a certificate attached (crbug.com/539735)
+//      guard let errorPeerCerificateChain = self.userInfo["NSErrorPeerCertificateChainKey"] as? [Any] else {
+//        return false
+//      }
+//      return errorPeerCerificateChain.count > 0
+//    default:
+//      return false
+//    }
+//  }
+//}
