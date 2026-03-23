@@ -20,6 +20,7 @@ Environment:
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -49,20 +50,55 @@ REVIEW_DISCLAIMER = (
 )
 
 
-def run_gh(*args, repo: str, capture=True):
-    cmd = ["gh", *args, "-R", repo]
+def _finalize_review_body(body: str) -> str:
+    """Ensure exactly one canonical disclaimer prefix (single place; not also in the model prompt)."""
+    if not (body or "").strip():
+        return ""
+    if body.startswith(REVIEW_DISCLAIMER):
+        return body
+    return REVIEW_DISCLAIMER + body
+
+
+def _cmd_error_detail(stderr: str | None, stdout: str | None) -> str:
+    parts = []
+    serr = (stderr or "").strip()
+    sout = (stdout or "").strip()
+    if serr:
+        parts.append(f"stderr: {serr}")
+    if sout:
+        parts.append(f"stdout: {sout}")
+    return "; ".join(parts) if parts else "(no stderr or stdout captured)"
+
+
+def _gh_env():
     env = {**os.environ}
     if "GH_TOKEN" in env:
         env["GH_TOKEN"] = os.environ["GH_TOKEN"]
-    result = subprocess.run(
-        cmd,
-        capture_output=capture,
-        text=True,
-        env=env,
-    )
-    if result.returncode != 0 and capture:
-        raise RuntimeError(f"gh failed: {result.stderr or result.stdout}")
+    return env
+
+
+def _run_gh_command(cmd: list[str], *, stdin: str | None = None, capture: bool = True):
+    """Run gh; always capture stderr/stdout so failures are diagnosable in CI."""
+    try:
+        result = subprocess.run(
+            cmd,
+            input=stdin,
+            text=True,
+            env=_gh_env(),
+            capture_output=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        cmd_s = " ".join(shlex.quote(str(c)) for c in e.cmd)
+        raise RuntimeError(
+            f"gh failed (exit {e.returncode}): {cmd_s}\n{_cmd_error_detail(e.stderr, e.stdout)}"
+        ) from e
     return result.stdout.strip() if capture else None
+
+
+def run_gh(*args, repo: str, capture=True):
+    cmd = ["gh", *args, "-R", repo]
+    return _run_gh_command(cmd, capture=capture)
 
 
 def gather_pr_context(pr_number: str, repo: str) -> dict:
@@ -99,7 +135,7 @@ def run_review(pr_number: str, repo: str) -> str:
         "You are running in CI: you cannot run bash commands or read additional files. Use ONLY the PR title, body, and diff provided. "
         "Output a single JSON object with two keys: 'body' and 'comments'. "
         "'body' (string): full review in markdown (Summary, Context, Analysis, Best Practices, Verdict: PASS/FAIL, Confidence). "
-        "Prefix the body with: 'I generated this review about the changes, sharing here. It should be used for informational purposes only and not as proof of review.\\n\\n'. "
+        "Do not include a review disclaimer in 'body'; CI adds the standard disclaimer when posting. "
         "'comments' (array): for each issue that applies to a specific line in the diff, one object with 'path' (file path as in the diff), 'line' (line number in the new file), 'body' (1-3 sentence comment). "
         "Put issues that are not tied to a specific line in the body only. Output only the JSON object, no surrounding text or markdown code fence.\n\n"
         "---\n"
@@ -129,18 +165,37 @@ def run_review(pr_number: str, repo: str) -> str:
     return text.strip()
 
 
+def _strip_optional_code_fence(text: str) -> str:
+    """If the model wrapped content in markdown fences, extract the inner part.
+
+    Tolerant of a missing closing fence (use find, not index; never raise ValueError).
+    """
+    t = text.strip()
+    if "```json" in t:
+        key = "```json"
+        start = t.find(key)
+        if start == -1:
+            return t
+        i = start + len(key)
+        end = t.find("```", i)
+        if end != -1:
+            return t[i:end].strip()
+        return t[i:].strip()
+    if "```" in t:
+        start = t.find("```")
+        if start == -1:
+            return t
+        i = start + 3
+        end = t.find("```", i)
+        if end != -1:
+            return t[i:end].strip()
+        return t[i:].strip()
+    return t
+
+
 def _parse_review_response(raw: str) -> tuple[str, list[dict]]:
     """Parse Claude response into body and comments. Falls back to raw as body if not JSON."""
-    raw = raw.strip()
-    # Allow JSON wrapped in ```json ... ```
-    if "```json" in raw:
-        start = raw.index("```json") + 7
-        end = raw.index("```", start)
-        raw = raw[start:end]
-    elif "```" in raw:
-        start = raw.index("```") + 3
-        end = raw.index("```", start)
-        raw = raw[start:end]
+    raw = _strip_optional_code_fence(raw.strip())
     try:
         data = json.loads(raw)
         body = data.get("body") or ""
@@ -157,10 +212,10 @@ def _parse_review_response(raw: str) -> tuple[str, list[dict]]:
                     "side": "RIGHT",
                     "body": str(c["body"]).strip()[:65535],
                 })
-        body = REVIEW_DISCLAIMER + body if body else ""
+        body = _finalize_review_body(body)
         return body, out
     except (json.JSONDecodeError, ValueError, TypeError):
-        return REVIEW_DISCLAIMER + raw, []
+        return _finalize_review_body(raw), []
 
 
 def post_review(pr_number: str, repo: str, body: str, comments: list[dict]) -> None:
@@ -175,9 +230,7 @@ def post_review(pr_number: str, repo: str, body: str, comments: list[dict]) -> N
             "gh", "api", f"repos/{repo}/pulls/{pr_number}/reviews",
             "--method", "POST", "-R", repo, "--input", "-",
         ]
-        proc = subprocess.run(cmd, input=json.dumps(payload), text=True, env=os.environ)
-        if proc.returncode != 0:
-            raise RuntimeError(f"gh api reviews failed: {proc.returncode}")
+        _run_gh_command(cmd, stdin=json.dumps(payload), capture=False)
     else:
         run_gh("pr", "comment", pr_number, "-b", body or "No review content.", repo=repo, capture=False)
 

@@ -5,25 +5,32 @@
 # Opt-in: runs only when the PR has label "review/claude" (remove the
 # "if" to enable for all PRs once cost is acceptable).
 #
-# Author must be MEMBER or OWNER of the repo org (github.event.pull_request.
-# author_association). Fork PRs from non-members are CONTRIBUTOR / etc. To also
-# allow trusted outside collaborators, add: || ... == 'COLLABORATOR'
+# Same-repo PRs only: github.event.pull_request.head.repo.full_name == github.repository
+# (no fork PRs; matches policy that does not run CI on forks; secrets available).
+#
+# Author must be MEMBER or OWNER (github.event.pull_request.author_association).
+# Fork PRs from non-members are CONTRIBUTOR / etc. To also allow outside
+# collaborators, add: || ... == 'COLLABORATOR'
 name: PR review (Claude)
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, labeled]
 
 permissions:
   contents: read
   pull-requests: write
-  packages: write
+  packages: read
 
 jobs:
   review:
     name: Claude PR review
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'review/claude') && (github.event.pull_request.author_association == 'MEMBER' || github.event.pull_request.author_association == 'OWNER')
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && contains(github.event.pull_request.labels.*.name, 'review/claude')
+      && (github.event.pull_request.author_association == 'MEMBER'
+      || github.event.pull_request.author_association == 'OWNER')
     env:
       GH_TOKEN: ${{ secrets.PR_REVIEW_BOT_GITHUB_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
