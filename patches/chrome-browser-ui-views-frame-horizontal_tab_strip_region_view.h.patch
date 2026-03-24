@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h b/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h
-index d1098733c4f4c83793dd16d94088ea59b579d0b2..2815fb2019dceb081709dbe3d8beac958c9699bb 100644
+index 239e34a7ca1bf7f1e6e74784fe561519038eada9..985d82d8dd0e15a890595755531f585f13f41eb2 100644
 --- a/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h
 +++ b/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h
-@@ -35,7 +35,7 @@ class TabStripFlatEdgeButton;
+@@ -33,7 +33,7 @@ class TabStripControlButton;
  
  // Container for the tabstrip and the other views sharing space with it -
  // with the exception of the caption buttons.

@@ -1,5 +1,5 @@
 diff --git a/components/content_settings/core/common/cookie_settings_base.cc b/components/content_settings/core/common/cookie_settings_base.cc
-index 4ef261f97e3cf3dc5d4b4046ccb958eafa3c028b..2dc99b912d33ec4e846b36e6bf6f442025844ba6 100644
+index 426c69d9d4bbe0324b027d2f867c14fb796fa6b7..c643fba2dc3635cacc9b07170aa8869324bac2d1 100644
 --- a/components/content_settings/core/common/cookie_settings_base.cc
 +++ b/components/content_settings/core/common/cookie_settings_base.cc
 @@ -587,6 +587,7 @@ CookieSettingsBase::DecideAccess(const GURL& url,

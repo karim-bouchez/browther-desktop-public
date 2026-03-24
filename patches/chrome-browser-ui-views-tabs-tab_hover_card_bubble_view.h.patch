@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.h b/chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.h
-index 1ecbe60beaff6cc85cc0d70854a799976f460c56..f80d3af0588526a9b6dee8bfbddfe3610386fe5d 100644
+index 298854909a7f8bab6934dc4ea76b07292bbb3b1d..25cbe276934734e6662cd30b4015330eac6439a3 100644
 --- a/chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.h
 +++ b/chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.h
-@@ -99,6 +99,7 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
+@@ -104,6 +104,7 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
    // available, or `std::nullopt` to disable crossfades entirely.
    static std::optional<double> GetPreviewImageCrossfadeStart();
  

@@ -1,5 +1,5 @@
 diff --git a/chrome/common/BUILD.gn b/chrome/common/BUILD.gn
-index e6ec5782e66340524576cbb0d09768dc296ce994..003abc6e6a0bab89a816b423ecc29f4a9b474054 100644
+index cf262448b602fc47fe1b09bed29d852404e020fa..008d6cf25d4b8a5fe8008dbd54593c5850b81609 100644
 --- a/chrome/common/BUILD.gn
 +++ b/chrome/common/BUILD.gn
 @@ -91,6 +91,7 @@ source_set("channel_info") {
@@ -26,7 +26,7 @@ index e6ec5782e66340524576cbb0d09768dc296ce994..003abc6e6a0bab89a816b423ecc29f4a
  }
  
  component("chrome_features") {
-@@ -577,6 +580,7 @@ static_library("constants") {
+@@ -580,6 +583,7 @@ static_library("constants") {
      "//third_party/widevine/cdm:buildflags",
    ]
  
