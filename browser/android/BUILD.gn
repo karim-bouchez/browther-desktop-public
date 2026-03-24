@@ -25,9 +25,11 @@ source_set("android_browser_process") {
     "//brave/browser/android/preferences",
     "//brave/browser/android/safe_browsing",
     "//brave/browser/brave_origin/android:jni_headers",
+    "//brave/browser/brave_shields",
     "//brave/browser/skus/android:jni_headers",
     "//brave/build/android:jni_headers",
     "//brave/components/brave_ads/buildflags",
+    "//brave/components/brave_perf_predictor/browser",
     "//brave/components/brave_shields/content/browser",
     "//brave/components/brave_shields/core/browser",
     "//brave/components/brave_shields/core/common",
@@ -52,6 +54,11 @@ source_set("android_browser_process") {
     "//components/unified_consent",
     "//components/webui/flags",
     "//url",
+  ]
+
+  allow_circular_includes_from = [
+    "//brave/browser/brave_shields",
+    "//brave/components/brave_perf_predictor/browser",
   ]
 
   if (enable_brave_ads) {
