@@ -365,9 +365,22 @@ if (!is_android) {
     "feed/web_feed_ui_util.h",
     "feed/web_feed_util.cc",
     "feed/web_feed_util.h",
+    "//brave/browser/hid/brave_hid_delegate.cc",
+    "//brave/browser/hid/brave_hid_delegate.h",
   ]
 
+  if (enable_brave_wallet) {
+    brave_chrome_browser_sources += [
+      "//brave/browser/hid/brave_wallet_hid_chooser.cc",
+      "//brave/browser/hid/brave_wallet_hid_chooser.h",
+    ]
+  }
+
   brave_chrome_browser_deps += [
+    "//brave/components/brave_wallet/common/buildflags",
+    "//chrome/browser/hid",
+    "//chrome/browser/ui/hid",
+    "//services/device/public/cpp/hid",
     "//brave/browser/ui/split_view",
     "//brave/browser/ui/tabs:impl",
     "//brave/browser/ui/webui/brave_new_tab_page_refresh",

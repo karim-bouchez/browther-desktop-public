@@ -1551,6 +1551,15 @@ bool BraveContentBrowserClient::AllowSignedExchange(
   return false;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+content::HidDelegate* BraveContentBrowserClient::GetHidDelegate() {
+  if (!brave_hid_delegate_) {
+    brave_hid_delegate_ = std::make_unique<BraveHidDelegate>();
+  }
+  return brave_hid_delegate_.get();
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
 bool BraveContentBrowserClient::IsJitDisabledForSite(
     content::BrowserContext* browser_context,
     const GURL& site_url) {
