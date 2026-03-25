@@ -14,7 +14,6 @@ aggregate_vector_icons("brave_vector_icons") {
   # Note: Before adding another icon here, check if the icon is available in Leo
   # https://leo.bravesoftware.com/?path=/story/icon--all-icons
   sources = [
-    "//ash/resources/vector_icons/incognito_profile.icon",
     "bat.icon",
     "brave_ads_close_button.icon",
     "brave_ads_dark_mode_info_button.icon",
@@ -22,6 +21,7 @@ aggregate_vector_icons("brave_vector_icons") {
     "brave_sad.icon",
     "brave_tooltips_stopwatch.icon",
     "download_unlock.icon",
+    "incognito_profile.icon",
     "sidebar_toolbar_button.icon",
     "sidebar_toolbar_button_right.icon",
     "user_menu_guest.icon",
