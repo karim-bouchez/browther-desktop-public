@@ -2567,3 +2567,69 @@ IN_PROC_BROWSER_TEST_F(TreeTabsBrowserTest,
           .GetTabGroupForTab(tab_strip_model().GetIndexOfTab(first_pinned))
           .has_value());
 }
+
+// With tree tabs enabled, moving both tabs of a split into an existing group
+// must keep the split as one collection inside the group (Brave delegate path
+// in MoveTabsIntoGroup).
+IN_PROC_BROWSER_TEST_F(TreeTabsBrowserTest,
+                       MoveSplitTabsIntoExistingGroup_PreservesSplit) {
+  auto* tab_groups_service =
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(
+          browser()->profile());
+  ASSERT_TRUE(tab_groups_service);
+  tab_groups_service->SetIsInitializedForTesting(true);
+
+  AddTab();
+  AddTab();
+  ASSERT_EQ(3, tab_strip_model().count());
+  CreateSplitWithTabs(&tab_strip_model(), 0, 1);
+  ASSERT_EQ(1u, tab_strip_collection().ListSplits().size());
+  AddTab();
+  ASSERT_EQ(4, tab_strip_model().count());
+  // So now we have:
+  // [Split(tab0, tab1), tab2, tab3]
+
+  SetTreeTabsEnabled(true);
+
+  tab_groups::TabGroupId group_id = tab_strip_model().AddToNewGroup({2, 3});
+  ASSERT_TRUE(tab_strip_model().group_model()->ContainsTabGroup(group_id));
+  EXPECT_EQ(tab_strip_model().GetTabGroupForTab(2), group_id);
+  EXPECT_EQ(tab_strip_model().GetTabGroupForTab(3), group_id);
+  //  Now we have:
+  // [Split(tab0, tab1), Group(tab2, tab3)]
+
+  // Try to add the split to the group
+  tabs::TabInterface* split_tab_a = tab_strip_model().GetTabAtIndex(0);
+  tabs::TabInterface* split_tab_b = tab_strip_model().GetTabAtIndex(1);
+  const split_tabs::SplitTabId split_id =
+      tab_strip_model().GetTabAtIndex(0)->GetSplit().value();
+  ASSERT_TRUE(tab_strip_model().GetTabAtIndex(1)->GetSplit().has_value());
+  EXPECT_EQ(tab_strip_model().GetTabAtIndex(1)->GetSplit().value(), split_id);
+
+  tab_strip_model().AddToExistingGroup({0, 1}, group_id, false);
+
+  // Checks if the model is in good shape.
+  ASSERT_EQ(1u, tab_strip_collection().ListSplits().size());
+  EXPECT_TRUE(tab_strip_model().ContainsSplit(split_id));
+
+  const int idx_a = tab_strip_model().GetIndexOfTab(split_tab_a);
+  const int idx_b = tab_strip_model().GetIndexOfTab(split_tab_b);
+  EXPECT_EQ(tab_strip_model().GetTabGroupForTab(idx_a), group_id);
+  EXPECT_EQ(tab_strip_model().GetTabGroupForTab(idx_b), group_id);
+  EXPECT_TRUE(tab_strip_model().GetTabAtIndex(idx_a)->IsSplit());
+  EXPECT_TRUE(tab_strip_model().GetTabAtIndex(idx_b)->IsSplit());
+  EXPECT_EQ(4u, tab_strip_model()
+                    .group_model()
+                    ->GetTabGroup(group_id)
+                    ->ListTabs()
+                    .length());
+
+  // Also checks if the collection is in good shape.
+  tabs::SplitTabCollection* split_coll =
+      tab_strip_collection().GetSplitTabCollection(split_id);
+  ASSERT_TRUE(split_coll);
+  EXPECT_EQ(2u, split_coll->TabCountRecursive());
+  EXPECT_EQ(split_coll->type(), tabs::TabCollection::Type::SPLIT);
+  EXPECT_EQ(split_coll->GetParentCollection()->type(),
+            tabs::TabCollection::Type::GROUP);
+}

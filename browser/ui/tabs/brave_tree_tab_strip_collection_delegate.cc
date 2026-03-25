@@ -555,16 +555,58 @@ void BraveTreeTabStripCollectionDelegate::MoveTabsIntoGroup(
 
   // Unwrap tabs from tree nodes or remove from other groups, then add to
   // target group.
-  std::vector<std::unique_ptr<tabs::TabInterface>> owned_tabs;
+  std::vector<std::variant<std::unique_ptr<tabs::TabInterface>,
+                           std::unique_ptr<tabs::TabCollection>>>
+      owned_tabs;
+  base::flat_map<split_tabs::SplitTabId, std::vector<tabs::TabInterface*>>
+      split_tabs;
+
   for (tabs::TabInterface* tab : moving_tabs) {
     tabs::TabCollection* parent =
         collection_->GetParentCollection(tab, GetPassKey());
-    CHECK_NE(parent, group_collection);
+    if (parent == group_collection) {
+      // The tab was inserted at the target group during drag-and-drop.
+      continue;
+    }
 
     if (parent->type() == tabs::TabCollection::Type::GROUP) {
       // Tab in another group (move from group A to group B); detach and add.
       std::unique_ptr<tabs::TabInterface> owned_tab = DetachTabOutOfGroup(tab);
       owned_tabs.push_back(std::move(owned_tab));
+      continue;
+    }
+
+    if (parent->type() == tabs::TabCollection::Type::SPLIT) {
+      split_tabs[tab->GetSplit().value()].push_back(tab);
+      if (split_tabs[tab->GetSplit().value()].size() < 2) {
+        // Split tabs should be moving together.
+        continue;
+      }
+
+      if (parent->GetParentCollection()->type() ==
+          tabs::TabCollection::Type::TREE_NODE) {
+        // Unwraps the split collection.
+        auto* wrapper = static_cast<tabs::TreeTabNodeTabCollection*>(
+            parent->GetParentCollection());
+        tree_tab_model_->RemoveTreeTabNode(wrapper->node().id());
+
+        MoveChildrenOfTreeTabNodeToParent(wrapper);
+
+        auto owned_split_collection = wrapper->MaybeRemoveCollection(parent);
+        owned_tabs.push_back(std::move(owned_split_collection));
+
+        auto* owner = wrapper->GetParentCollection();
+        std::ignore = owner->MaybeRemoveCollection(wrapper);
+
+      } else if (parent->GetParentCollection()->type() ==
+                 tabs::TabCollection::Type::GROUP) {
+        // The split is moving inside a group via drag-and-drop.
+        auto owned_split_collection =
+            parent->GetParentCollection()->MaybeRemoveCollection(parent);
+        owned_tabs.push_back(std::move(owned_split_collection));
+      } else {
+        NOTREACHED();
+      }
       continue;
     }
 
@@ -588,13 +630,36 @@ void BraveTreeTabStripCollectionDelegate::MoveTabsIntoGroup(
 
   // Attach to the target group
   for (auto& tab : owned_tabs) {
-    auto* tag_ptr = tab.get();
-    group_collection->AddTab(std::move(tab), index_in_group++);
-    CHECK(tag_ptr->GetGroup().has_value());
-    CHECK_EQ(tag_ptr->GetGroup().value(), group_collection->GetTabGroupId());
-    auto* parent = collection_->GetParentCollection(tag_ptr, GetPassKey());
-    CHECK_EQ(parent->type(), tabs::TabCollection::Type::GROUP);
-    CHECK_EQ(parent, group_collection);
+    tabs::TabCollection* new_parent = nullptr;
+    std::visit(absl::Overload{
+                   [&](std::unique_ptr<tabs::TabInterface>&& tab) {
+                     auto* tab_ptr = tab.get();
+                     group_collection->AddTab(std::move(tab), index_in_group++);
+                     CHECK(tab_ptr->GetGroup().has_value());
+                     CHECK_EQ(tab_ptr->GetGroup().value(),
+                              group_collection->GetTabGroupId());
+                     new_parent = collection_->GetParentCollection(
+                         tab_ptr, GetPassKey());
+                   },
+                   [&](std::unique_ptr<tabs::TabCollection>&& collection) {
+                     auto* collection_ptr = collection.get();
+                     group_collection->AddCollection(std::move(collection),
+                                                     index_in_group++);
+                     CHECK_EQ(collection_ptr->type(),
+                              tabs::TabCollection::Type::SPLIT);
+                     auto tabs = collection_ptr->GetTabsRecursive();
+                     CHECK_EQ(tabs.size(), 2u);
+                     CHECK_EQ(tabs[0]->GetGroup().value(),
+                              group_collection->GetTabGroupId());
+                     CHECK_EQ(tabs[1]->GetGroup().value(),
+                              group_collection->GetTabGroupId());
+                     new_parent = collection_ptr->GetParentCollection();
+                   },
+               },
+               std::move(tab));
+
+    CHECK_EQ(new_parent->type(), tabs::TabCollection::Type::GROUP);
+    CHECK_EQ(new_parent, group_collection);
   }
 }
 
@@ -686,7 +751,7 @@ void BraveTreeTabStripCollectionDelegate::MoveTabsOutOfGroup(
     offset = new_parent->GetIndexOfCollection(group_wrapper).value();
   } else {
     // Moving tabs should be attached after the group(last tab's index)
-    CHECK_EQ(destination_index,
+    CHECK_GE(destination_index,
              first_tab_in_group_index + group->TabCountRecursive() - 1);
     new_parent = group_wrapper;
     offset = 1;
@@ -1017,6 +1082,12 @@ bool BraveTreeTabStripCollectionDelegate::CreateSplit(
     return false;
   }
 
+  if (tabs[0]->GetGroup()) {
+    CHECK_EQ(tabs[0]->GetGroup().value(), tabs[1]->GetGroup().value());
+    // Let the upstream handle this case.
+    return false;
+  }
+
   const size_t index0 = *collection_->GetIndexOfTabRecursive(tabs[0]);
   const size_t index1 = *collection_->GetIndexOfTabRecursive(tabs[1]);
   tabs::TabInterface* first_tab = tabs[0];
@@ -1100,8 +1171,13 @@ bool BraveTreeTabStripCollectionDelegate::Unsplit(
     return false;
   }
 
-  // The split's parent is the wrapper tree node; we will destroy it too.
   tabs::TabCollection* wrapper = split->GetParentCollection();
+  if (wrapper->type() == tabs::TabCollection::Type::GROUP) {
+    // Let the upstream handle this case.
+    return false;
+  }
+
+  // The split's parent is the wrapper tree node; we will destroy it too.
   CHECK_EQ(wrapper->type(), tabs::TabCollection::Type::TREE_NODE);
   auto* wrapper_tree_node =
       static_cast<tabs::TreeTabNodeTabCollection*>(wrapper);
