@@ -65,8 +65,7 @@ class FakeLocalAIService : public local_ai::mojom::LocalAIService {
 
   void GetPassageEmbedder(GetPassageEmbedderCallback callback) override {
     mojo::PendingRemote<local_ai::mojom::PassageEmbedder> remote;
-    embedder_receivers_.Add(embedder_,
-                            remote.InitWithNewPipeAndPassReceiver());
+    embedder_receivers_.Add(embedder_, remote.InitWithNewPipeAndPassReceiver());
     std::move(callback).Run(std::move(remote));
   }
 
@@ -104,8 +103,8 @@ TEST_F(BraveEmbedderTest, BasicEmbedding) {
   base::test::TestFuture<std::vector<std::string>, std::vector<Embedding>,
                          Embedder::TaskId, ComputeEmbeddingsStatus>
       future;
-  embedder_->ComputePassagesEmbeddings(
-      PassagePriority::kPassive, {"hello world"}, future.GetCallback());
+  embedder_->ComputePassagesEmbeddings(PassagePriority::kPassive,
+                                       {"hello world"}, future.GetCallback());
 
   ASSERT_TRUE(future.Wait());
   auto [passages, embeddings, task_id, status] = future.Take();
@@ -120,9 +119,9 @@ TEST_F(BraveEmbedderTest, HighPriorityPreemptsLowPriority) {
   base::test::TestFuture<std::vector<std::string>, std::vector<Embedding>,
                          Embedder::TaskId, ComputeEmbeddingsStatus>
       passive_future;
-  embedder_->ComputePassagesEmbeddings(
-      PassagePriority::kPassive, {"p1", "p2", "p3"},
-      passive_future.GetCallback());
+  embedder_->ComputePassagesEmbeddings(PassagePriority::kPassive,
+                                       {"p1", "p2", "p3"},
+                                       passive_future.GetCallback());
 
   // Wait for first passage to be sent.
   ASSERT_TRUE(base::test::RunUntil(
@@ -133,9 +132,9 @@ TEST_F(BraveEmbedderTest, HighPriorityPreemptsLowPriority) {
   base::test::TestFuture<std::vector<std::string>, std::vector<Embedding>,
                          Embedder::TaskId, ComputeEmbeddingsStatus>
       search_future;
-  embedder_->ComputePassagesEmbeddings(
-      PassagePriority::kUserInitiated, {"search query"},
-      search_future.GetCallback());
+  embedder_->ComputePassagesEmbeddings(PassagePriority::kUserInitiated,
+                                       {"search query"},
+                                       search_future.GetCallback());
 
   // Complete p1 — the search query should be next due to priority.
   fake_worker_.ReleaseNextResponse();
