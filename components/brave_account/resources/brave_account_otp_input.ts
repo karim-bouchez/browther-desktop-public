@@ -149,9 +149,9 @@ export class BraveAccountOtpInputElement extends CrLitElement {
           (index) => html`
             <leo-input
               autofocus=${index === 0}
-<if expr="is_ios">
+              // <if expr="is_ios">
               spellcheck="false"
-</if>
+              // </if>
               type="text"
               @beforeinput=${(e: InputEvent) => this.onBeforeInput(e, index)}
               @focus=${this.onFocus}
