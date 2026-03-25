@@ -14,6 +14,7 @@
 // snap.request().
 
 import { BraveWallet } from '../../constants/types'
+import type { Value as MojoValue } from 'chrome://resources/mojo/mojo/public/mojom/base/values.mojom-webui.js'
 import {
   makeLoadSnapCommand,
   makeInvokeSnapCommand,
@@ -24,6 +25,48 @@ import {
 } from './snap_messages'
 
 const SNAP_EXECUTOR_ORIGIN = 'chrome-untrusted://snap-executor'
+
+// Convert a mojo_base.mojom.Value tagged union to a plain JS value.
+export function mojoValueToJs(v: MojoValue | null | undefined): unknown {
+  if (v === null || v === undefined) { return null }
+  if (v.nullValue !== undefined) { return null }
+  if (v.boolValue !== undefined) { return v.boolValue }
+  if (v.intValue !== undefined) { return v.intValue }
+  if (v.doubleValue !== undefined) { return v.doubleValue }
+  if (v.stringValue !== undefined) { return v.stringValue }
+  if (v.listValue !== undefined) {
+    return v.listValue.storage.map((item) => mojoValueToJs(item))
+  }
+  if (v.dictionaryValue !== undefined) {
+    const obj: Record<string, unknown> = {}
+    for (const [k, val] of Object.entries(v.dictionaryValue.storage)) {
+      obj[k] = mojoValueToJs(val)
+    }
+    return obj
+  }
+  return null
+}
+
+// Convert a plain JS value to a mojo_base.mojom.Value tagged union.
+export function jsToMojoValue(v: unknown): MojoValue {
+  if (v === null || v === undefined) { return { nullValue: 0 } }
+  if (typeof v === 'boolean') { return { boolValue: v } }
+  if (typeof v === 'number') {
+    return Number.isInteger(v) ? { intValue: v } : { doubleValue: v }
+  }
+  if (typeof v === 'string') { return { stringValue: v } }
+  if (Array.isArray(v)) {
+    return { listValue: { storage: v.map((item) => jsToMojoValue(item)) } }
+  }
+  if (typeof v === 'object') {
+    const storage: Record<string, MojoValue> = {}
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      storage[k] = jsToMojoValue(val)
+    }
+    return { dictionaryValue: { storage } }
+  }
+  return { nullValue: 0 }
+}
 
 function generateRequestId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -79,24 +122,35 @@ export class SnapBridge {
 
   async loadSnap(
     snapId: string,
-    snapSource: string,
   ): Promise<{ success: boolean; error: string | null }> {
-    let iframe = this.iframes.get(snapId)
-    if (!iframe) {
-      iframe = await this.createAndWaitForIframe(snapId)
-    }
+    try {
+      console.error('XXXZZZ SnapBridge.loadSnap', snapId)
+      let iframe = this.iframes.get(snapId)
+      if (!iframe) {
+        console.error('XXXZZZ SnapBridge.loadSnap: creating iframe')
+        iframe = await this.createAndWaitForIframe(snapId)
+        console.error('XXXZZZ SnapBridge.loadSnap: iframe loaded', iframe.src)
+      }
 
-    const requestId = generateRequestId()
-    const response = await this.sendToIframe(
-      iframe,
-      makeLoadSnapCommand(snapId, snapSource, requestId),
-      requestId,
-    )
+      const requestId = generateRequestId()
+      console.error('XXXZZZ SnapBridge.loadSnap: sending load_snap requestId=', requestId)
+      const response = await this.sendToIframe(
+        iframe,
+        makeLoadSnapCommand(snapId, requestId),
+        requestId,
+      )
+      console.error('XXXZZZ SnapBridge.loadSnap: got response from iframe', response)
 
-    if (response.error) {
-      return { success: false, error: response.error }
+      if (response.error) {
+        console.error('XXXZZZ SnapBridge.loadSnap ERROR:', response.error)
+        return { success: false, error: response.error }
+      }
+      return { success: true, error: null }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('XXXZZZ SnapBridge.loadSnap ERROR (thrown):', msg)
+      return { success: false, error: msg }
     }
-    return { success: true, error: null }
   }
 
   async invokeSnap(
@@ -104,22 +158,56 @@ export class SnapBridge {
     method: string,
     params: unknown,
   ): Promise<{ result: unknown | null; error: string | null }> {
+    try {
+      const iframe = this.iframes.get(snapId)
+      if (!iframe) {
+        return { result: null, error: `Snap '${snapId}' is not loaded` }
+      }
+
+      // Convert Mojo tagged-union params to a plain JS value for postMessage.
+      const plainParams = mojoValueToJs(params as MojoValue)
+
+      const requestId = generateRequestId()
+      console.error('XXXZZZ SnapBridge.invokeSnap sending invoke to iframe, method=', method)
+      const response = await this.sendToIframe(
+        iframe,
+        makeInvokeSnapCommand(method, plainParams, this.getCallerOrigin(), requestId),
+        requestId,
+      )
+      console.error('XXXZZZ SnapBridge.invokeSnap got response', response)
+
+      if (response.error) {
+        return { result: null, error: response.error }
+      }
+      // Convert plain JS result back to Mojo tagged union for serialization.
+      const mojoResult = response.result !== undefined && response.result !== null
+        ? jsToMojoValue(response.result)
+        : null
+      return { result: mojoResult, error: null }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('XXXZZZ SnapBridge.invokeSnap ERROR:', msg)
+      return { result: null, error: msg }
+    }
+  }
+
+  // Proxy an HTTP GET through the snap executor iframe (which has connect-src *).
+  // The wallet page CSP is too strict for direct external fetches.
+  async proxyFetch(snapId: string, url: string): Promise<string> {
     const iframe = this.iframes.get(snapId)
     if (!iframe) {
-      return { result: null, error: `Snap '${snapId}' is not loaded` }
+      throw new Error('Snap not loaded — load snap before proxyFetch')
     }
-
     const requestId = generateRequestId()
     const response = await this.sendToIframe(
       iframe,
-      makeInvokeSnapCommand(method, params, this.getCallerOrigin(), requestId),
+      { type: 'proxy_fetch', url, requestId },
       requestId,
     )
-
     if (response.error) {
-      return { result: null, error: response.error }
+      throw new Error(response.error)
     }
-    return { result: response.result ?? null, error: null }
+    return (response.result as string) ?? ''
   }
 
   unloadSnap(snapId: string): void {
@@ -141,13 +229,17 @@ export class SnapBridge {
     return new Promise((resolve) => {
       const iframe = document.createElement('iframe')
       iframe.src = 'chrome-untrusted://snap-executor/'
-      // allow-scripts is the minimum required; no allow-same-origin so the
-      // iframe cannot access the parent's DOM or storage.
-      iframe.setAttribute('sandbox', 'allow-scripts')
+      // allow-same-origin is required for chrome-untrusted:// WebUI to
+      // initialise correctly (mirrors ledger-bridge pattern). The iframe
+      // origin is chrome-untrusted://snap-executor — cross-origin from the
+      // parent chrome://wallet — so allow-same-origin does NOT grant access
+      // to the parent's DOM or storage.
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin')
       iframe.style.display = 'none'
       iframe.addEventListener('load', () => resolve(iframe), { once: true })
       this.container.appendChild(iframe)
       this.iframes.set(snapId, iframe)
+      console.error('XXXZZZ SnapBridge: iframe attached to DOM for', snapId)
     })
   }
 
@@ -217,14 +309,23 @@ export class SnapBridge {
     }
 
     try {
+      // JSON round-trip strips MetaMask snap Component class instances
+      // (panel/text/heading) to plain objects, then wrap as Mojo Value union.
+      let plainParams: unknown = {}
+      try {
+        plainParams = JSON.parse(JSON.stringify(msg.params ?? {}))
+      } catch {
+        plainParams = {}
+      }
+
       const { result, error } =
         await this.snapRequestHandler.handleSnapRequest(
           msg.snapId,
           msg.method,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          msg.params as any,
+          jsToMojoValue(plainParams) as any,
         )
-      postResponse(result, error ?? undefined)
+      // Convert Mojo Value result back to plain JS for the snap executor.
+      postResponse(mojoValueToJs(result ?? null), error ?? undefined)
     } catch (err) {
       const msg2 = err instanceof Error ? err.message : String(err)
       postResponse(undefined, msg2)

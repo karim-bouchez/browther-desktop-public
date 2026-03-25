@@ -7,6 +7,7 @@
 
 #include "base/containers/fixed_flat_map.h"
 #include "base/no_destructor.h"
+#include "components/grit/brave_components_resources.h"
 
 namespace brave_wallet {
 
@@ -20,10 +21,21 @@ SnapManifest::~SnapManifest() = default;
 namespace {
 
 // Built-in snap allowlist. Extend this list as additional snaps are bundled.
-// Key: snap_id string.  Value: SnapManifest.
 const auto& GetBuiltinSnaps() {
-  // TODO(snap): Populate with real bundled snaps and their GRD resource IDs.
-  static const base::NoDestructor<std::vector<SnapManifest>> kBuiltinSnaps({});
+  static const base::NoDestructor<std::vector<SnapManifest>> kBuiltinSnaps([] {
+    std::vector<SnapManifest> snaps;
+
+    // Cosmos snap — derives Cosmos keys via snap_getBip44Entropy(coinType=118).
+    // Bundle is embedded via IDR_BRAVE_WALLET_COSMOS_SNAP_JS.
+    SnapManifest cosmos;
+    cosmos.snap_id             = "npm:@cosmsnap/snap";
+    cosmos.version             = "0.1.22";
+    cosmos.allowed_permissions = {"snap_getBip44Entropy"};
+    cosmos.resource_id         = IDR_BRAVE_WALLET_COSMOS_SNAP_JS;
+    snaps.push_back(std::move(cosmos));
+
+    return snaps;
+  }());
   return *kBuiltinSnaps;
 }
 
