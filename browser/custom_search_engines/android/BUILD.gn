@@ -23,6 +23,7 @@ android_library("java") {
     "//base:log_java",
     "//base:supplier_java",
     "//base:tasks_java",
+    "//brave/components/search_engines/android:java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/search_engines/android:java",

@@ -6,8 +6,24 @@
 #ifndef BRAVE_CHROMIUM_SRC_COMPONENTS_SEARCH_ENGINES_ANDROID_TEMPLATE_URL_SERVICE_ANDROID_H_
 #define BRAVE_CHROMIUM_SRC_COMPONENTS_SEARCH_ENGINES_ANDROID_TEMPLATE_URL_SERVICE_ANDROID_H_
 
-#define DoesDefaultSearchEngineHaveLogo                      \
-  DoesDefaultSearchEngineHaveLogo_ChromiumImpl(JNIEnv* env); \
+#include "base/android/jni_android.h"
+#include "base/android/jni_array.h"
+#include "base/android/jni_string.h"
+
+#define DoesDefaultSearchEngineHaveLogo                                      \
+  DoesDefaultSearchEngineHaveLogo_ChromiumImpl(JNIEnv* env);                 \
+  jboolean Add(JNIEnv* env,                                                  \
+               const base::android::JavaRef<jstring>& search_engine_title,   \
+               const base::android::JavaRef<jstring>& search_engine_keyword, \
+               const base::android::JavaRef<jstring>& search_engine_url);    \
+  jboolean Update(                                                           \
+      JNIEnv* env, const base::android::JavaRef<jstring>& existing_keyword,  \
+      const base::android::JavaRef<jstring>& search_engine_title,            \
+      const base::android::JavaRef<jstring>& search_engine_keyword,          \
+      const base::android::JavaRef<jstring>& search_engine_url);             \
+  jboolean Remove(                                                           \
+      JNIEnv* env,                                                           \
+      const base::android::JavaRef<jstring>& search_engine_keyword);         \
   jboolean DoesDefaultSearchEngineHaveLogo
 
 #include <components/search_engines/android/template_url_service_android.h>  // IWYU pragma: export

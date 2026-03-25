@@ -32,6 +32,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.components.favicon.LargeIconBridge;
+import org.chromium.components.search_engines.BraveTemplateUrlService;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.widget.Toast;
 
@@ -168,10 +169,11 @@ public class CustomSearchEngineAdapter
                 }
                 Runnable templateUrlServiceReady =
                         () -> {
-                            // TODO(https://github.com/brave/brave-browser/issues/21837): implement
-                            // the actual removal of the custom search
-                            // engine from template url service.
-                            boolean isRemoved = true;
+                            boolean isRemoved =
+                                    ((BraveTemplateUrlService)
+                                                    TemplateUrlServiceFactory.getForProfile(
+                                                            mProfile))
+                                            .remove(searchEngineKeyword);
                             if (isRemoved) {
                                 mCustomSearchEnginesManager.removeCustomSearchEngine(
                                         searchEngineKeyword);

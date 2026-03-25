@@ -1151,3 +1151,11 @@
 -keep class org.chromium.chrome.browser.tabbed_mode.BraveTabbedAdaptiveToolbarBehavior {
     <init>(...);
 }
+
+-keep class org.chromium.components.search_engines.TemplateUrlService {
+    public <init>(...);
+}
+
+-keep class org.chromium.components.search_engines.BraveTemplateUrlService {
+    public <init>(...);
+}
