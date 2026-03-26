@@ -178,6 +178,9 @@
 # These tests fail because we disable kAimEnabled.
 -AimEligibilityServiceTest.*
 
+# These tests fail because the default search engine is Brave instead of Google.
+-DefaultSearchManagerTest.DefaultSearchOverridesIgnoredWhenFlagEnabled
+
 # Tests below this point have not been diagnosed or had issues created yet.
 -AccountInvestigatorTest.*
 -AccountReconcilorDiceTest.*

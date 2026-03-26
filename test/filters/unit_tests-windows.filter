@@ -6,7 +6,6 @@
 ##
 
 # These tests pass locally but fail on CI
--FileAnalysisRequestBaseTest.NoHashForHugeFilesWhenAsyncHashComputationEnabled
 -FileSystemAccessUIHelpersTest.GetElidedPathForDisplayAsTitle
 -NotificationHelperLaunchesChrome.ChromeLaunchTest
 -PerformanceManagerMetricsProviderDesktopTest.TestCpuThrottlingMetricRecordedWhereAvailable
