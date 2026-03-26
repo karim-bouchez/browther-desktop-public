@@ -7,6 +7,9 @@ package org.chromium.components.search_engines;
 
 import org.jni_zero.NativeMethods;
 
+import org.chromium.build.annotations.NullMarked;
+
+@NullMarked
 public class BraveTemplateUrlService extends TemplateUrlService {
 
     // Overridden Chromium's TemplateUrlService.mNativeTemplateUrlServiceAndroid
