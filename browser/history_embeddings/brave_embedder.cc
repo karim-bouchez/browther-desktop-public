@@ -204,6 +204,21 @@ void BraveEmbedder::ProcessNextPassage() {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
+// static
+std::optional<std::vector<float>> BraveEmbedder::ConvertEmbedding(
+    const std::vector<double>& embedding) {
+  std::vector<float> result;
+  result.reserve(embedding.size());
+  for (double val : embedding) {
+    float f;
+    if (!base::CheckedNumeric<float>(val).AssignIfValid(&f)) {
+      return std::nullopt;
+    }
+    result.push_back(f);
+  }
+  return result;
+}
+
 void BraveEmbedder::OnPassageProcessed(const std::vector<double>& embedding) {
   if (!current_job_) {
     return;
@@ -218,25 +233,20 @@ void BraveEmbedder::OnPassageProcessed(const std::vector<double>& embedding) {
     return;
   }
 
-  // Convert double to float and store. Use CheckedNumeric to reject
-  // values that can't be exactly represented as float.
-  std::vector<float> float_embedding;
-  float_embedding.reserve(embedding.size());
-  for (double val : embedding) {
-    float result;
-    if (!base::CheckedNumeric<float>(val).AssignIfValid(&result)) {
-      DVLOG(0) << "Embedding value out of float range for passage "
-               << current_job_->embeddings.size() << " of task "
-               << current_job_->task_id;
-      FailJob(std::move(*std::exchange(current_job_, std::nullopt)));
-      ProcessNextPassage();
-      return;
-    }
-    float_embedding.push_back(result);
+  auto float_embedding = ConvertEmbedding(embedding);
+  if (!float_embedding) {
+    DVLOG(0) << "Embedding value out of float range for passage "
+             << current_job_->embeddings.size() << " of task "
+             << current_job_->task_id;
+    FailJob(std::move(*std::exchange(current_job_, std::nullopt)));
+    ProcessNextPassage();
+    return;
   }
+
   size_t word_count = history_embeddings::CountWords(
       current_job_->passages[current_job_->embeddings.size()]);
-  current_job_->embeddings.emplace_back(std::move(float_embedding), word_count);
+  current_job_->embeddings.emplace_back(std::move(*float_embedding),
+                                        word_count);
 
   // Check if this job is complete.
   if (current_job_->embeddings.size() == current_job_->passages.size()) {

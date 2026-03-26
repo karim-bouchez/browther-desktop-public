@@ -79,6 +79,8 @@ class BraveEmbedder : public Embedder {
   void FailJob(Job job);
   void CompleteJob(Job job);
   void FailAllPendingTasks();
+  static std::optional<std::vector<float>> ConvertEmbedding(
+      const std::vector<double>& embedding);
   void ProcessNextPassage();
   void OnPassageProcessed(const std::vector<double>& embedding);
 
