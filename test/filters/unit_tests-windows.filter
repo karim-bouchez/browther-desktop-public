@@ -1,0 +1,41 @@
+##
+## Upstream tests to disable
+##
+## When adding a new filter to this list, please include a short description of
+## why the filter is required and create an associated tracking issue.
+##
+
+# These tests pass locally but fail on CI
+-FileSystemAccessUIHelpersTest.GetElidedPathForDisplayAsTitle
+-NotificationHelperLaunchesChrome.ChromeLaunchTest
+-PerformanceManagerMetricsProviderDesktopTest.TestCpuThrottlingMetricRecordedWhereAvailable
+
+# This test is disabled because our CIs use Windows Server which doesn't appear
+# to have FOLDERID_OneDrive entry in the registry making this test fail.
+-PathServiceTest.Get
+
+# These fail due to CHECK in ResourceBundle::GetLocalizedStringImpl because: "If
+# this happens in a browser test running on Windows, it may be that dead-code
+# elimination stripped out the code that uses the resource, causing the resource
+# to be stripped out because the resource is not used by chrome.dll"
+-BrowserFeaturePromoController2xStringSubstitutionTest.BodyTextSubstitution_MultipleStrings/V20
+-BrowserFeaturePromoController2xStringSubstitutionTest.BodyTextSubstitution_MultipleStrings/V25
+-BrowserFeaturePromoController2xStringSubstitutionTest.ScreenreaderTextSubstitution_MultipleStrings/V20
+-BrowserFeaturePromoController2xStringSubstitutionTest.ScreenreaderTextSubstitution_MultipleStrings/V25
+-BrowserFeaturePromoController2xStringSubstitutionTest.TitleTextSubstitution_MultipleStrings/V20
+-BrowserFeaturePromoController2xStringSubstitutionTest.TitleTextSubstitution_MultipleStrings/V25
+-DesktopMediaPickerViewsSingleTabPaneTest.AccessibleProperties
+
+# Tests below this point have not been diagnosed or had issues created yet.
+-All/AppMenuIconControllerTest.UpgradeNotification/2
+-All/AppMenuIconControllerTest.UpgradeNotification/3
+-EnterpriseReportingPrivateG\etContextInfoOSFirewallTest.*
+-ExtensionServiceTest.*
+-LayoutProviderTest.*
+-PlatformStateStoreWinTest.*
+-RenderViewContextMenuPrefsTest.SearchWebForOptionOnPasswordManagerCheckIsDisabled
+-RenderViewContextMenuPrefsTest.SearchWebForOptionOnPasswordManagerSettingsIsDisabled
+-RenderViewContextMenuPrefsTest.SearchWebForOptionOnPasswordsManagerSubPageIsDisabled
+-ShellIntegrationWinTest.*
+-WebAppCommandManagerTest.ToDebugValue
+-WebAppShortcutWinTest.*

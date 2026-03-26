@@ -1,0 +1,107 @@
+# Copyright (c) 2023 The Brave Authors. All rights reserved.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import("//brave/build/config.gni")
+import("//brave/components/brave_ads/buildflags/buildflags.gni")
+import("//brave/components/brave_rewards/core/buildflags/buildflags.gni")
+
+assert(enable_brave_ads)
+
+static_library("browser") {
+  sources = [
+    "ad_units/notification_ad/custom_notification_ad_constants.h",
+    "ad_units/notification_ad/custom_notification_ad_feature.cc",
+    "ad_units/notification_ad/custom_notification_ad_feature.h",
+    "analytics/p3a/notification_ad.cc",
+    "analytics/p3a/notification_ad.h",
+    "component_updater/component_info.h",
+    "component_updater/component_util.cc",
+    "component_updater/component_util.h",
+    "component_updater/resource_component.cc",
+    "component_updater/resource_component.h",
+    "component_updater/resource_component_observer.h",
+    "component_updater/resource_component_registrar.cc",
+    "component_updater/resource_component_registrar.h",
+    "component_updater/resource_component_registrar_delegate.h",
+    "component_updater/resource_info.h",
+    "reminder/reminder_util.cc",
+    "reminder/reminder_util.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  deps = [
+    "//base",
+    "//brave/components/brave_adaptive_captcha",
+    "//brave/components/brave_component_updater/browser",
+    "//brave/components/brave_rewards/core/buildflags",
+    "//brave/components/brave_rewards/core/mojom",
+    "//brave/components/l10n/common",
+    "//brave/components/ntp_background_images/common",
+    "//brave/components/p3a_utils",
+    "//brave/components/time_period_storage",
+    "//components/content_settings/core/browser",
+    "//components/pref_registry",
+    "//components/prefs",
+    "//components/sessions",
+    "//third_party/blink/public/common",
+    "//ui/base/idle",
+    "//url",
+  ]
+
+  public_deps = [
+    "application_state",
+    "//brave/components/brave_ads/core",
+    "//brave/components/brave_ads/core/mojom",
+    "//brave/components/services/bat_ads/public/interfaces",
+    "//components/keyed_service/core",
+    "//mojo/public/cpp/bindings",
+  ]
+
+  sources += [
+    "ads_service_impl.cc",
+    "ads_service_impl.h",
+    "bat_ads_service_factory.h",
+    "device_id/device_id.cc",
+    "device_id/device_id.h",
+    "tooltips/ads_tooltips_delegate.h",
+  ]
+
+  deps += [
+    "//brave/common",
+    "//brave/components/brave_rewards/core",
+    "//brave/components/resources:strings_grit",
+    "//components/history/core/browser",
+    "//components/variations",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//net",
+    "//ui/base",
+  ]
+
+  if (enable_brave_rewards) {
+    deps += [ "//brave/components/brave_rewards/content" ]
+  }
+
+  public_deps += [ "//brave/components/services/bat_ads/public/interfaces" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "analytics/p3a/notification_ad_unittest.cc" ]
+
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//brave/components/brave_ads/browser",
+    "//brave/components/brave_ads/core",
+    "//components/metrics:metrics_pref_names",
+    "//components/prefs",
+    "//components/prefs:test_support",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}

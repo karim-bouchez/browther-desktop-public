@@ -1,0 +1,12 @@
+diff --git a/components/content_settings/core/browser/BUILD.gn b/components/content_settings/core/browser/BUILD.gn
+index 32fdf21142bdba3d19e198fe258a87bcc74e22c0..fb31f4a39e4ebbda7f62e9134a4090f9629c5eaa 100644
+--- a/components/content_settings/core/browser/BUILD.gn
++++ b/components/content_settings/core/browser/BUILD.gn
+@@ -87,6 +87,7 @@ static_library("browser") {
+   # for PageInfoRelatedWebsiteSetsTest tests.
+   # TODO(crbug.com/40145057): remove deprecated RWS and this include.
+   public_deps += [ "//components/privacy_sandbox:privacy_sandbox_prefs" ]
++  sources += brave_components_content_settings_core_browser_sources deps += brave_components_content_settings_core_browser_deps
+ }
+ 
+ source_set("cookie_settings") {

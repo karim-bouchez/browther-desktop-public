@@ -1,0 +1,12 @@
+diff --git a/components/permissions/request_type.cc b/components/permissions/request_type.cc
+index 39bad3ef7fc191ca8f1ce2a140a48f65b235ac22..4d107938e953420aceeb4cabbd32e0ab12c5323b 100644
+--- a/components/permissions/request_type.cc
++++ b/components/permissions/request_type.cc
+@@ -497,6 +497,7 @@ const char* PermissionKeyForRequestType(permissions::RequestType request_type) {
+       return "window_management";
+     case permissions::RequestType::kIdentityProvider:
+       return "identity_provider";
++    BRAVE_PERMISSION_KEY_FOR_REQUEST_TYPE
+   }
+ 
+   return nullptr;

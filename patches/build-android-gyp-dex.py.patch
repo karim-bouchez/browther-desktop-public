@@ -1,0 +1,12 @@
+diff --git a/build/android/gyp/dex.py b/build/android/gyp/dex.py
+index 39da2082abdc45ac21fb3a698f59197fc38aaff2..fe6e99829f4a882cdbbad8ce4eaf96df7561a44b 100755
+--- a/build/android/gyp/dex.py
++++ b/build/android/gyp/dex.py
+@@ -35,6 +35,7 @@ DEFAULT_IGNORE_WARNINGS = (
+     # https://crbug.com/408280256
+     r'MethodHandle.invoke',
+ )
++DEFAULT_IGNORE_WARNINGS += ( r'.Brave', )
+ 
+ _MERGE_SERVICE_ENTRIES = (
+     # Uses ServiceLoader to find all implementing classes, so multiple are

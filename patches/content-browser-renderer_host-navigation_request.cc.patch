@@ -1,0 +1,20 @@
+diff --git a/content/browser/renderer_host/navigation_request.cc b/content/browser/renderer_host/navigation_request.cc
+index 7d101d40116bf743f940f32ba4c9b507aa9a235b..8f6a41705f177ef1c7870e893a59b0a7e7c35b48 100644
+--- a/content/browser/renderer_host/navigation_request.cc
++++ b/content/browser/renderer_host/navigation_request.cc
+@@ -3732,6 +3732,7 @@ void NavigationRequest::OnRequestRedirected(
+   common_params_->url = redirect_info.new_url;
+   common_params_->method = redirect_info.new_method;
+   common_params_->referrer->url = GURL(redirect_info.new_referrer);
++  BRAVE_ONREQUESTREDIRECTED_MAYBEHIDEREFERRER
+   common_params_->referrer = Referrer::SanitizeForRequest(
+       common_params_->url, *common_params_->referrer);
+ 
+@@ -5637,6 +5638,7 @@ void NavigationRequest::OnStartChecksComplete(
+   headers.MergeFrom(TakeModifiedRequestHeaders());
+   begin_params_->headers = headers.ToString();
+ 
++  BRAVE_ONSTARTCHECKSCOMPLETE_MAYBEHIDEREFERRER
+   // TODO(clamy): Avoid cloning the navigation params and create the
+   // ResourceRequest directly here.
+   std::vector<std::unique_ptr<NavigationLoaderInterceptor>> interceptor;

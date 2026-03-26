@@ -1,0 +1,12 @@
+diff --git a/build/config/android/BUILD.gn b/build/config/android/BUILD.gn
+index 1e17083d3737458eb3397776b6ed8a8f02f52797..fb57f9244eafa79528bbbabd78f7d74a9aa40eba 100644
+--- a/build/config/android/BUILD.gn
++++ b/build/config/android/BUILD.gn
+@@ -64,6 +64,7 @@ config("compiler") {
+       rustflags += [ "-Zbranch-protection=pac-ret" ]
+     }
+   }
++  import("//brave/build/config/android/brave_compiler_ldflags.gni") ldflags += brave_build_config_android_compiler_ldflags
+ 
+   # Disable TLSDESC for riscv64 until the Android NDK supports it. While
+   # Chromium's clang turns it on by default for Android RISC-V devices, NDK r27

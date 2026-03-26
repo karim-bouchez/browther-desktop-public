@@ -1,0 +1,21 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/sync/settings/ManageSyncSettings.java b/chrome/android/java/src/org/chromium/chrome/browser/sync/settings/ManageSyncSettings.java
+index d9b6b3fe661d038cabe3675471c09f57341eb177..954dbe6b9aca2ec138954d5e69a96796fecbd9c2 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/sync/settings/ManageSyncSettings.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/sync/settings/ManageSyncSettings.java
+@@ -64,7 +64,7 @@ import org.chromium.chrome.browser.ui.signin.SignOutCoordinator;
+ import org.chromium.chrome.browser.ui.signin.SigninUtils;
+ import org.chromium.chrome.browser.ui.signin.SignoutButtonPreference;
+ import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncHelper;
+-import org.chromium.components.browser_ui.settings.ChromeBaseCheckBoxPreference;
++import org.chromium.components.browser_ui.settings.brave_tricks.checkbox_to_switch.ChromeBaseCheckBoxPreference;
+ import org.chromium.components.browser_ui.settings.ChromeBasePreference;
+ import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
+ import org.chromium.components.browser_ui.settings.SettingsUtils;
+@@ -626,6 +626,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
+      */
+     private void updateSyncPreferences() {
+         String signedInAccountName =
++                mGoogleActivityControls != null ? "" : // We want the next `if` to be always false.
+                 CoreAccountInfo.getEmailFrom(
+                         getIdentityManager()
+                                 .getPrimaryAccountInfo(

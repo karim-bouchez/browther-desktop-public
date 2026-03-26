@@ -1,0 +1,97 @@
+/* Copyright (c) 2019 The Brave Authors. All rights reserved.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "brave/browser/ui/views/location_bar/brave_star_view.h"
+#include "brave/components/brave_wayback_machine/buildflags/buildflags.h"
+#include "brave/components/playlist/core/common/buildflags/buildflags.h"
+#include "brave/components/speedreader/common/buildflags/buildflags.h"
+#include "chrome/browser/ui/page_action/page_action_icon_type.h"
+#include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
+
+#if BUILDFLAG(ENABLE_BRAVE_WAYBACK_MACHINE)
+#include "brave/browser/ui/views/page_action/wayback_machine_action_icon_view.h"
+#endif
+
+#if BUILDFLAG(ENABLE_SPEEDREADER)
+#include "brave/browser/ui/views/speedreader/speedreader_icon_view.h"
+#endif
+
+#if BUILDFLAG(ENABLE_PLAYLIST_WEBUI)
+#include "brave/browser/ui/views/playlist/playlist_action_icon_view.h"
+constexpr bool kSupportsPlaylistActionIconView = true;
+#else
+constexpr bool kSupportsPlaylistActionIconView = false;
+#endif
+
+#if BUILDFLAG(ENABLE_SPEEDREADER)
+// CHROMIUM_SRC_INTERNAL_USE
+#define BRAVE_PAGE_ACTION_ICON_CONTROLLER_SPEEDREADER_CASE                   \
+  case brave::kSpeedreaderPageActionIconType:                                \
+    add_page_action_icon(                                                    \
+        type, std::make_unique<SpeedreaderIconView>(                         \
+                  params.command_updater, params.icon_label_bubble_delegate, \
+                  params.page_action_icon_delegate));                        \
+    break;
+#else
+// CHROMIUM_SRC_INTERNAL_USE
+#define BRAVE_PAGE_ACTION_ICON_CONTROLLER_SPEEDREADER_CASE
+#endif
+
+#if BUILDFLAG(ENABLE_BRAVE_WAYBACK_MACHINE)
+// CHROMIUM_SRC_INTERNAL_USE
+#define BRAVE_WAYBACK_MACHINE_PAGE_ACTION_CASE                                 \
+  case brave::kWaybackMachineActionIconType:                                   \
+    add_page_action_icon(type, std::make_unique<WaybackMachineActionIconView>( \
+                                   params.command_updater, params.browser,     \
+                                   params.icon_label_bubble_delegate,          \
+                                   params.page_action_icon_delegate));         \
+    break;
+#else
+// CHROMIUM_SRC_INTERNAL_USE
+#define BRAVE_WAYBACK_MACHINE_PAGE_ACTION_CASE
+#endif
+
+// Circumvent creation of CookieControlsIconView in
+// PageActionIconController::Init's switch statement by injecting a case
+// with a non-existent value created above.
+#define kCookieControls                                     \
+  kCookieControls:                                          \
+  break;                                                    \
+  case brave::kPlaylistPageActionIconType:                  \
+    if constexpr (kSupportsPlaylistActionIconView) {        \
+      playlist_action_icon_view_ = add_page_action_icon(    \
+          type, std::make_unique<PlaylistActionIconView>(   \
+                    params.command_updater, params.browser, \
+                    params.icon_label_bubble_delegate,      \
+                    params.page_action_icon_delegate));     \
+    }                                                       \
+    break;                                                  \
+    BRAVE_WAYBACK_MACHINE_PAGE_ACTION_CASE                  \
+    BRAVE_PAGE_ACTION_ICON_CONTROLLER_SPEEDREADER_CASE      \
+  case brave::kUndefinedPageActionIconType
+
+// We define additional PageActionIconType values (in
+// brave_page_action_icon_type.h), but make them negative to avoid clashing
+// with the upstream enum. These values cannot be passed to
+// base::UmaHistogramEnumeration in
+// PageActionIconController::RecordIndividualMetrics, because they would
+// trigger:
+// DCHECK_LE(static_cast<uintmax_t>(sample),
+//           static_cast<uintmax_t>(T::kMaxValue));
+#define kShown kShown);                                            \
+  if (static_cast<int>(type) < 0) /* NOLINT(readability/braces) */ \
+    return; (false
+
+#define StarView BraveStarView
+#include <chrome/browser/ui/views/page_action/page_action_icon_controller.cc>
+#undef StarView
+#undef kShown
+#undef kCookieControls
+#undef BRAVE_WAYBACK_MACHINE_PAGE_ACTION_CASE
+#undef BRAVE_PAGE_ACTION_ICON_CONTROLLER_SPEEDREADER_CASE
+
+PageActionIconView* PageActionIconController::GetPlaylistActionIconView() {
+  return playlist_action_icon_view_.get();
+}

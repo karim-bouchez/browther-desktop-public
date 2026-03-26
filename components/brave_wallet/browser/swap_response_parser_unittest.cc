@@ -1,0 +1,2690 @@
+/* Copyright (c) 2021 The Brave Authors. All rights reserved.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+#include "brave/components/brave_wallet/browser/swap_response_parser.h"
+
+#include <memory>
+#include <utility>
+
+#include "base/i18n/time_formatting.h"
+#include "base/json/json_reader.h"
+#include "base/test/values_test_util.h"
+#include "brave/components/brave_wallet/browser/json_rpc_requests_helper.h"
+#include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
+
+using base::test::ParseJson;
+
+namespace brave_wallet {
+
+namespace {
+
+const char* GetJupiterQuoteResponse() {
+  return R"(
+    {
+      "inputMint": "So11111111111111111111111111111111111111112",
+      "inAmount": "1000000",
+      "outputMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "outAmount": "781469842",
+      "otherAmountThreshold": "781391696",
+      "swapMode": "ExactIn",
+      "slippageBps": "1",
+      "platformFee": {
+        "amount": "6775397",
+        "feeBps": "85"
+      },
+      "priceImpactPct": "0",
+      "routePlan": [
+        {
+          "swapInfo": {
+            "ammKey": "HCk6LA93xPVsF8g4v6gjkiCd88tLXwZq4eJwiYNHR8da",
+            "label": "Raydium",
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": "HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4",
+            "inAmount": "997500",
+            "outAmount": "4052482154",
+            "feeAmount": "2500",
+            "feeMint": "So11111111111111111111111111111111111111112"
+          },
+          "percent": "100"
+        },
+        {
+          "swapInfo": {
+            "ammKey": "HqrRmb2MbEiTrJS5KXhDzUoKbSLbBXJvhNBGEyDNo9Tr",
+            "label": "Meteora",
+            "inputMint": "HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4",
+            "outputMint": "dipQRV1bWwJbZ3A2wHohXiTZC77CzFGigbFEcvsyMrS",
+            "inAmount": "4052482154",
+            "outAmount": "834185227",
+            "feeAmount": "10131205",
+            "feeMint": "dipQRV1bWwJbZ3A2wHohXiTZC77CzFGigbFEcvsyMrS"
+          },
+          "percent": "100"
+        },
+        {
+          "swapInfo": {
+            "ammKey": "6shkv2VNBPWVABvShgcGmrv98Z1vR3EcdwND6XUwGoFq",
+            "label": "Meteora",
+            "inputMint": "dipQRV1bWwJbZ3A2wHohXiTZC77CzFGigbFEcvsyMrS",
+            "outputMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+            "inAmount": "834185227",
+            "outAmount": "781469842",
+            "feeAmount": "2085463",
+            "feeMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+          },
+          "percent": "100"
+        }
+      ]
+    })";
+}
+
+}  // namespace
+
+TEST(SwapResponseParserUnitTest, ParseZeroExQuoteResponse) {
+  // Case 1: non-null zeroExFee
+  std::string json(R"(
+    {
+      "blockNumber": "20114676",
+      "buyAmount": "100032748",
+      "buyToken": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "fees": {
+        "integratorFee": null,
+        "zeroExFee": {
+          "amount": "0",
+          "token": "0xdeadbeef",
+          "type": "volume"
+        },
+        "gasFee": null
+      },
+      "gas": "288095",
+      "gasPrice": "7062490000",
+      "issues": {
+        "allowance": {
+          "actual": "0",
+          "spender": "0x0000000000001ff3684f28c67538d4d072c22734"
+        },
+        "balance": {
+          "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+          "actual": "0",
+          "expected": "100000000"
+        },
+        "simulationIncomplete": false,
+        "invalidSourcesPassed": []
+      },
+      "liquidityAvailable": true,
+      "minBuyAmount": "99032421",
+      "route": {
+        "fills": [
+          {
+            "from": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+            "to": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "source": "SolidlyV3",
+            "proportionBps": "10000"
+          }
+        ],
+        "tokens": [
+          {
+            "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+            "symbol": "USDC"
+          },
+          {
+            "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "symbol": "USDT"
+          }
+        ]
+      },
+      "sellAmount": "100000000",
+      "sellToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "tokenMetadata": {
+        "buyToken": {
+          "buyTaxBps": "0",
+          "sellTaxBps": "0"
+        },
+        "sellToken": {
+          "buyTaxBps": "0",
+          "sellTaxBps": "0"
+        }
+      },
+      "totalNetworkFee": "2034668056550000",
+      "zid": "0x111111111111111111111111"
+    }
+  )");
+  auto quote =
+      zeroex::ParseQuoteResponse(ParseJson(json), mojom::kMainnetChainId);
+  ASSERT_TRUE(quote);
+
+  EXPECT_EQ(quote->buy_amount, "100032748");
+  EXPECT_EQ(quote->buy_token, "0xdac17f958d2ee523a2206206994597c13d831ec7");
+
+  ASSERT_TRUE(quote->fees->zero_ex_fee);
+  EXPECT_EQ(quote->fees->zero_ex_fee->amount, "0");
+  EXPECT_EQ(quote->fees->zero_ex_fee->token, "0xdeadbeef");
+  EXPECT_EQ(quote->fees->zero_ex_fee->type, "volume");
+
+  EXPECT_EQ(quote->gas, "288095");
+  EXPECT_EQ(quote->gas_price, "7062490000");
+  EXPECT_EQ(quote->liquidity_available, true);
+  EXPECT_EQ(quote->min_buy_amount, "99032421");
+
+  ASSERT_EQ(quote->route->fills.size(), 1UL);
+  EXPECT_EQ(quote->route->fills.at(0)->from,
+            "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+  EXPECT_EQ(quote->route->fills.at(0)->to,
+            "0xdac17f958d2ee523a2206206994597c13d831ec7");
+  EXPECT_EQ(quote->route->fills.at(0)->source, "SolidlyV3");
+  EXPECT_EQ(quote->route->fills.at(0)->proportion_bps, "10000");
+
+  EXPECT_EQ(quote->sell_amount, "100000000");
+  EXPECT_EQ(quote->sell_token, "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+  EXPECT_EQ(quote->total_network_fee, "2034668056550000");
+
+  EXPECT_EQ(quote->liquidity_available, true);
+  EXPECT_EQ(quote->allowance_target,
+            "0x0000000000001fF3684f28c67538d4D072C22734");
+
+  // Case 2: null zeroExFee
+  json = R"(
+    {
+      "blockNumber": "20114676",
+      "buyAmount": "100032748",
+      "buyToken": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "fees": {
+        "integratorFee": null,
+        "zeroExFee": null,
+        "gasFee": null
+      },
+      "gas": "288095",
+      "gasPrice": "7062490000",
+      "issues": {
+        "allowance": {
+          "actual": "0",
+          "spender": "0x0000000000001ff3684f28c67538d4d072c22734"
+        },
+        "balance": {
+          "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+          "actual": "0",
+          "expected": "100000000"
+        },
+        "simulationIncomplete": false,
+        "invalidSourcesPassed": []
+      },
+      "liquidityAvailable": true,
+      "minBuyAmount": "99032421",
+      "route": {
+        "fills": [
+          {
+            "from": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+            "to": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "source": "SolidlyV3",
+            "proportionBps": "10000"
+          }
+        ],
+        "tokens": [
+          {
+            "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+            "symbol": "USDC"
+          },
+          {
+            "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "symbol": "USDT"
+          }
+        ]
+      },
+      "sellAmount": "100000000",
+      "sellToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "tokenMetadata": {
+        "buyToken": {
+          "buyTaxBps": "0",
+          "sellTaxBps": "0"
+        },
+        "sellToken": {
+          "buyTaxBps": "0",
+          "sellTaxBps": "0"
+        }
+      },
+      "totalNetworkFee": "2034668056550000",
+      "zid": "0x111111111111111111111111"
+    }
+  )";
+  quote = zeroex::ParseQuoteResponse(ParseJson(json), mojom::kMainnetChainId);
+  ASSERT_TRUE(quote);
+  EXPECT_FALSE(quote->fees->zero_ex_fee);
+  EXPECT_EQ(quote->liquidity_available, true);
+  EXPECT_EQ(quote->allowance_target,
+            "0x0000000000001fF3684f28c67538d4D072C22734");
+
+  // Case 3: malformed fees field
+  json = R"(
+    {
+      "blockNumber": "20114676",
+      "buyAmount": "100032748",
+      "buyToken": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "fees": null,
+      "gas": "288095",
+      "gasPrice": "7062490000",
+      "issues": {
+        "allowance": {
+          "actual": "0",
+          "spender": "0x0000000000001ff3684f28c67538d4d072c22734"
+        },
+        "balance": {
+          "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+          "actual": "0",
+          "expected": "100000000"
+        },
+        "simulationIncomplete": false,
+        "invalidSourcesPassed": []
+      },
+      "liquidityAvailable": true,
+      "minBuyAmount": "99032421",
+      "route": {
+        "fills": [
+          {
+            "from": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+            "to": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "source": "SolidlyV3",
+            "proportionBps": "10000"
+          }
+        ],
+        "tokens": [
+          {
+            "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+            "symbol": "USDC"
+          },
+          {
+            "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "symbol": "USDT"
+          }
+        ]
+      },
+      "sellAmount": "100000000",
+      "sellToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "tokenMetadata": {
+        "buyToken": {
+          "buyTaxBps": "0",
+          "sellTaxBps": "0"
+        },
+        "sellToken": {
+          "buyTaxBps": "0",
+          "sellTaxBps": "0"
+        }
+      },
+      "totalNetworkFee": "2034668056550000",
+      "zid": "0x111111111111111111111111"
+    }
+  )";
+  EXPECT_FALSE(
+      zeroex::ParseQuoteResponse(ParseJson(json), mojom::kMainnetChainId));
+
+  // Case 4: insufficient liquidity
+  json = R"(
+    {
+      "liquidityAvailable": false,
+    }
+  )";
+  quote = zeroex::ParseQuoteResponse(ParseJson(json), mojom::kMainnetChainId);
+  ASSERT_TRUE(quote);
+  EXPECT_FALSE(quote->liquidity_available);
+  EXPECT_EQ(quote->buy_token, "");
+
+  // Case 5: other invalid cases
+  json = R"({"totalNetworkFee": "2034668056550000"})";
+  EXPECT_FALSE(
+      zeroex::ParseQuoteResponse(ParseJson(json), mojom::kMainnetChainId));
+  json = R"({"totalNetworkFee": 2034668056550000})";
+  EXPECT_FALSE(
+      zeroex::ParseQuoteResponse(ParseJson(json), mojom::kMainnetChainId));
+  json = "3";
+  EXPECT_FALSE(
+      zeroex::ParseQuoteResponse(ParseJson(json), mojom::kMainnetChainId));
+  json = "[3]";
+  EXPECT_FALSE(
+      zeroex::ParseQuoteResponse(ParseJson(json), mojom::kMainnetChainId));
+  EXPECT_FALSE(
+      zeroex::ParseQuoteResponse(base::Value(), mojom::kMainnetChainId));
+}
+
+TEST(SwapResponseParserUnitTest, ParseZeroExTransactionResponse) {
+  // Case 1: valid transaction
+  std::string json(R"(
+    {
+      "transaction": {
+        "to": "0x7f6cee965959295cc64d0e6c00d99d6532d8e86b",
+        "data": "0xdeadbeef",
+        "gas": "288079",
+        "gasPrice": "4837860000",
+        "value": "0"
+      }
+    }
+  )");
+  mojom::ZeroExTransactionPtr transaction =
+      zeroex::ParseTransactionResponse(ParseJson(json));
+  ASSERT_TRUE(transaction);
+
+  EXPECT_EQ(transaction->to, "0x7f6cee965959295cc64d0e6c00d99d6532d8e86b");
+  EXPECT_EQ(transaction->data, "0xdeadbeef");
+  EXPECT_EQ(transaction->gas, "288079");
+  EXPECT_EQ(transaction->gas_price, "4837860000");
+  EXPECT_EQ(transaction->value, "0");
+
+  // Case 2: invalid cases
+  json = "3";
+  EXPECT_FALSE(zeroex::ParseTransactionResponse(ParseJson(json)));
+  json = "[3]";
+  EXPECT_FALSE(zeroex::ParseTransactionResponse(ParseJson(json)));
+  EXPECT_FALSE(zeroex::ParseTransactionResponse(base::Value()));
+}
+
+TEST(SwapResponseParserUnitTest, ParseJupiterQuoteResponse) {
+  auto* json = GetJupiterQuoteResponse();
+  mojom::JupiterQuotePtr swap_quote =
+      jupiter::ParseQuoteResponse(ParseJson(json));
+
+  ASSERT_TRUE(swap_quote);
+  EXPECT_EQ(swap_quote->input_mint,
+            "So11111111111111111111111111111111111111112");
+  EXPECT_EQ(swap_quote->in_amount, "1000000");
+  EXPECT_EQ(swap_quote->output_mint,
+            "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263");
+  EXPECT_EQ(swap_quote->out_amount, "781469842");
+  EXPECT_EQ(swap_quote->other_amount_threshold, "781391696");
+  EXPECT_EQ(swap_quote->swap_mode, "ExactIn");
+  EXPECT_EQ(swap_quote->slippage_bps, "1");
+  EXPECT_EQ(swap_quote->price_impact_pct, "0");
+
+  ASSERT_TRUE(swap_quote->platform_fee);
+  EXPECT_EQ(swap_quote->platform_fee->amount, "6775397");
+  EXPECT_EQ(swap_quote->platform_fee->fee_bps, "85");
+
+  ASSERT_EQ(swap_quote->route_plan.size(), 3UL);
+  EXPECT_EQ(swap_quote->route_plan.at(0)->percent, "100");
+  EXPECT_EQ(swap_quote->route_plan.at(0)->swap_info->amm_key,
+            "HCk6LA93xPVsF8g4v6gjkiCd88tLXwZq4eJwiYNHR8da");
+  EXPECT_EQ(swap_quote->route_plan.at(0)->swap_info->label, "Raydium");
+  EXPECT_EQ(swap_quote->route_plan.at(0)->swap_info->input_mint,
+            "So11111111111111111111111111111111111111112");
+  EXPECT_EQ(swap_quote->route_plan.at(0)->swap_info->output_mint,
+            "HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4");
+  EXPECT_EQ(swap_quote->route_plan.at(0)->swap_info->in_amount, "997500");
+  EXPECT_EQ(swap_quote->route_plan.at(0)->swap_info->out_amount, "4052482154");
+  ASSERT_TRUE(swap_quote->route_plan.at(0)->swap_info->fee_amount);
+  EXPECT_EQ(*swap_quote->route_plan.at(0)->swap_info->fee_amount, "2500");
+  ASSERT_TRUE(swap_quote->route_plan.at(0)->swap_info->fee_mint);
+  EXPECT_EQ(*swap_quote->route_plan.at(0)->swap_info->fee_mint,
+            "So11111111111111111111111111111111111111112");
+  EXPECT_EQ(swap_quote->route_plan.at(1)->percent, "100");
+  EXPECT_EQ(swap_quote->route_plan.at(1)->swap_info->amm_key,
+            "HqrRmb2MbEiTrJS5KXhDzUoKbSLbBXJvhNBGEyDNo9Tr");
+  EXPECT_EQ(swap_quote->route_plan.at(1)->swap_info->label, "Meteora");
+  EXPECT_EQ(swap_quote->route_plan.at(1)->swap_info->input_mint,
+            "HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4");
+  EXPECT_EQ(swap_quote->route_plan.at(1)->swap_info->output_mint,
+            "dipQRV1bWwJbZ3A2wHohXiTZC77CzFGigbFEcvsyMrS");
+  EXPECT_EQ(swap_quote->route_plan.at(1)->swap_info->in_amount, "4052482154");
+  EXPECT_EQ(swap_quote->route_plan.at(1)->swap_info->out_amount, "834185227");
+  ASSERT_TRUE(swap_quote->route_plan.at(1)->swap_info->fee_amount);
+  EXPECT_EQ(*swap_quote->route_plan.at(1)->swap_info->fee_amount, "10131205");
+  ASSERT_TRUE(swap_quote->route_plan.at(1)->swap_info->fee_mint);
+  EXPECT_EQ(*swap_quote->route_plan.at(1)->swap_info->fee_mint,
+            "dipQRV1bWwJbZ3A2wHohXiTZC77CzFGigbFEcvsyMrS");
+  EXPECT_EQ(swap_quote->route_plan.at(2)->percent, "100");
+  EXPECT_EQ(swap_quote->route_plan.at(2)->swap_info->amm_key,
+            "6shkv2VNBPWVABvShgcGmrv98Z1vR3EcdwND6XUwGoFq");
+  EXPECT_EQ(swap_quote->route_plan.at(2)->swap_info->label, "Meteora");
+  EXPECT_EQ(swap_quote->route_plan.at(2)->swap_info->input_mint,
+            "dipQRV1bWwJbZ3A2wHohXiTZC77CzFGigbFEcvsyMrS");
+  EXPECT_EQ(swap_quote->route_plan.at(2)->swap_info->output_mint,
+            "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263");
+  EXPECT_EQ(swap_quote->route_plan.at(2)->swap_info->in_amount, "834185227");
+  EXPECT_EQ(swap_quote->route_plan.at(2)->swap_info->out_amount, "781469842");
+  ASSERT_TRUE(swap_quote->route_plan.at(2)->swap_info->fee_amount);
+  EXPECT_EQ(*swap_quote->route_plan.at(2)->swap_info->fee_amount, "2085463");
+  ASSERT_TRUE(swap_quote->route_plan.at(2)->swap_info->fee_mint);
+  EXPECT_EQ(*swap_quote->route_plan.at(2)->swap_info->fee_mint,
+            "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263");
+
+  // OK: missing optional feeAmount and feeMint fields
+  auto quote_without_fees = jupiter::ParseQuoteResponse(ParseJson(R"({
+    "inputMint": "So11111111111111111111111111111111111111112",
+    "inAmount": "1000000",
+    "outputMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+    "outAmount": "781469842",
+    "otherAmountThreshold": "781391696",
+    "swapMode": "ExactIn",
+    "slippageBps": "1",
+    "platformFee": null,
+    "priceImpactPct": "0",
+    "routePlan": [
+      {
+        "swapInfo": {
+          "ammKey": "HCk6LA93xPVsF8g4v6gjkiCd88tLXwZq4eJwiYNHR8da",
+          "label": "Raydium",
+          "inputMint": "So11111111111111111111111111111111111111112",
+          "outputMint": "HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4",
+          "inAmount": "997500",
+          "outAmount": "4052482154"
+        },
+        "percent": "100"
+      }
+    ]
+  })"));
+  ASSERT_TRUE(quote_without_fees);
+  ASSERT_EQ(quote_without_fees->route_plan.size(), 1UL);
+  EXPECT_FALSE(quote_without_fees->route_plan.at(0)->swap_info->fee_amount);
+  EXPECT_FALSE(quote_without_fees->route_plan.at(0)->swap_info->fee_mint);
+
+  // OK: null platformFee value
+  EXPECT_TRUE(jupiter::ParseQuoteResponse(ParseJson(R"({
+    "inputMint": "So11111111111111111111111111111111111111112",
+      "inAmount": "1000000",
+      "outputMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "outAmount": "781469842",
+      "otherAmountThreshold": "781391696",
+      "swapMode": "ExactIn",
+      "slippageBps": "1",
+      "platformFee": null,
+      "priceImpactPct": "0",
+      "routePlan": []
+  })")));
+
+  // KO: Malformed quote
+  EXPECT_FALSE(jupiter::ParseQuoteResponse(base::Value()));
+
+  // KO: Invalid quote
+  EXPECT_FALSE(jupiter::ParseQuoteResponse(ParseJson(R"({"price": "3"})")));
+
+  // KO: Invalid platformFee value
+  EXPECT_FALSE(jupiter::ParseQuoteResponse(ParseJson(R"({
+    "inputMint": "So11111111111111111111111111111111111111112",
+      "inAmount": "1000000",
+      "outputMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "outAmount": "781469842",
+      "otherAmountThreshold": "781391696",
+      "swapMode": "ExactIn",
+      "slippageBps": "1",
+      "platformFee": "foo",
+      "priceImpactPct": "0",
+      "routePlan": []
+  })")));
+}
+
+TEST(SwapResponseParserUnitTest, ParseJupiterTransactionResponse) {
+  std::string json(R"(
+    {
+      "swapTransaction": "swap"
+    })");
+
+  auto transaction = jupiter::ParseTransactionResponse(ParseJson(json));
+  ASSERT_TRUE(transaction);
+  ASSERT_EQ(transaction, "swap");
+
+  ASSERT_FALSE(jupiter::ParseTransactionResponse(base::Value()));
+  ASSERT_FALSE(
+      jupiter::ParseTransactionResponse(ParseJson(R"({"foo": "bar"})")));
+}
+
+TEST(SwapResponseParserUnitTest, ParseZeroExErrorResponse) {
+  {
+    std::string json(R"(
+      {
+        "name": "INPUT_INVALID",
+        "message": "Validation Failed"
+      })");
+
+    auto swap_error = zeroex::ParseErrorResponse(ParseJson(json));
+    EXPECT_EQ(swap_error->name, "INPUT_INVALID");
+    EXPECT_EQ(swap_error->message, "Validation Failed");
+  }
+}
+
+TEST(SwapResponseParserUnitTest, ParseJupiterErrorResponse) {
+  {
+    std::string json(R"(
+    {
+      "statusCode": "some code",
+      "error": "error",
+      "message": "No routes found for the input and output mints"
+    })");
+
+    auto jupiter_error = jupiter::ParseErrorResponse(ParseJson(json));
+    EXPECT_EQ(jupiter_error->status_code, "some code");
+    EXPECT_EQ(jupiter_error->error, "error");
+    EXPECT_EQ(jupiter_error->message,
+              "No routes found for the input and output mints");
+
+    EXPECT_TRUE(jupiter_error->is_insufficient_liquidity);
+  }
+  {
+    std::string json(R"(
+    {
+      "statusCode": "some code",
+      "error": "error",
+      "message": "some message"
+    })");
+
+    auto jupiter_error = jupiter::ParseErrorResponse(ParseJson(json));
+    EXPECT_EQ(jupiter_error->status_code, "some code");
+    EXPECT_EQ(jupiter_error->error, "error");
+    EXPECT_EQ(jupiter_error->message, "some message");
+
+    EXPECT_FALSE(jupiter_error->is_insufficient_liquidity);
+  }
+}
+
+TEST(SwapResponseParserUnitTest, ParseLiFiQuoteResponse) {
+  {
+    // OK: valid quote
+    std::string json(R"(
+    {
+      "routes": [
+        {
+          "id": "0x343bc553146a3dd8438518d80bd1b6957f3fec05d137ff65a940bfb5390d3f1f",
+          "fromChainId": "1",
+          "fromAmountUSD": "1.00",
+          "fromAmount": "1000000",
+          "fromToken": {
+            "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "chainId": "1",
+            "symbol": "USDC",
+            "decimals": "6",
+            "name": "USD Coin",
+            "coinKey": "USDC",
+            "logoURI": "usdc.png",
+            "priceUSD": "1"
+          },
+          "fromAddress": "0xa92D461a9a988A7f11ec285d39783A637Fdd6ba4",
+          "toChainId": "10",
+          "toAmountUSD": "1.01",
+          "toAmount": "1013654",
+          "toAmountMin": "1008586",
+          "toToken": {
+            "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+            "chainId": "10",
+            "symbol": "USDT",
+            "decimals": "6",
+            "name": "USDT",
+            "coinKey": "USDT",
+            "logoURI": "usdt.png",
+            "priceUSD": "0.999685"
+          },
+          "toAddress": "0xa92D461a9a988A7f11ec285d39783A637Fdd6ba4",
+          "gasCostUSD": "14.65",
+          "containsSwitchChain": false,
+          "steps": [
+            {
+              "type": "lifi",
+              "id": "5a6876f1-988e-4710-85b7-be2bd7681421",
+              "tool": "optimism",
+              "toolDetails": {
+                "key": "optimism",
+                "name": "Optimism Gateway",
+                "logoURI": "optimism.png"
+              },
+              "action": {
+                "fromToken": {
+                  "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                  "chainId": "1",
+                  "symbol": "USDC",
+                  "decimals": "6",
+                  "name": "USD Coin",
+                  "coinKey": "USDC",
+                  "logoURI": "usdc.png",
+                  "priceUSD": "1"
+                },
+                "fromAmount": "1000000",
+                "toToken": {
+                  "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+                  "chainId": "10",
+                  "symbol": "USDT",
+                  "decimals": "6",
+                  "name": "USDT",
+                  "coinKey": "USDT",
+                  "logoURI": "usdt.png",
+                  "priceUSD": "0.999685"
+                },
+                "fromChainId": "1",
+                "toChainId": "10",
+                "slippage": "0.005",
+                "fromAddress": "0xa92D461a9a988A7f11ec285d39783A637Fdd6ba4",
+                "toAddress": "0xa92D461a9a988A7f11ec285d39783A637Fdd6ba4"
+              },
+              "estimate": {
+                "tool": "optimism",
+                "approvalAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+                "toAmountMin": "1008586",
+                "toAmount": "1013654",
+                "fromAmount": "1000000",
+                "feeCosts": [
+                  {
+                    "name": "LP Fee",
+                    "description": "Fee paid to the Liquidity Provider",
+                    "token": {
+                      "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                      "chainId": "1",
+                      "symbol": "USDC",
+                      "decimals": "6",
+                      "name": "USD Coin",
+                      "coinKey": "USDC",
+                      "logoURI": "usdc.png",
+                      "priceUSD": "1"
+                    },
+                    "amount": "3000",
+                    "amountUSD": "0.01",
+                    "percentage": "0.003",
+                    "included": true
+                  }
+                ],
+                "gasCosts": [
+                  {
+                    "type": "SEND",
+                    "price": "17621901985",
+                    "estimate": "375000",
+                    "limit": "618000",
+                    "amount": "6608213244375000",
+                    "amountUSD": "14.65",
+                    "token": {
+                      "address": "0x0000000000000000000000000000000000000000",
+                      "chainId": "1",
+                      "symbol": "ETH",
+                      "decimals": "18",
+                      "name": "ETH",
+                      "coinKey": "ETH",
+                      "logoURI": "eth.png",
+                      "priceUSD": "2216.770000000000000000"
+                    }
+                  }
+                ],
+                "executionDuration": "106.944",
+                "fromAmountUSD": "1.00",
+                "toAmountUSD": "1.01"
+              },
+              "includedSteps": [
+                {
+                  "id": "9ac4d9f1-9b72-463d-baf1-fcd8b09f8a8d",
+                  "type": "swap",
+                  "action": {
+                    "fromChainId": "1",
+                    "fromAmount": "1000000",
+                    "fromToken": {
+                      "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                      "chainId": "1",
+                      "symbol": "USDC",
+                      "decimals": "6",
+                      "name": "USD Coin",
+                      "coinKey": "USDC",
+                      "logoURI": "usdc.png",
+                      "priceUSD": "1"
+                    },
+                    "toChainId": "1",
+                    "toToken": {
+                      "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                      "chainId": "1",
+                      "symbol": "USDT",
+                      "decimals": "6",
+                      "name": "USDT",
+                      "coinKey": "USDT",
+                      "logoURI": "usdt.png",
+                      "priceUSD": "0.999685"
+                    },
+                    "slippage": "0.005"
+                  },
+                  "estimate": {
+                    "tool": "verse-dex",
+                    "fromAmount": "1000000",
+                    "toAmount": "1013654",
+                    "toAmountMin": "1008586",
+                    "approvalAddress": "0xB4B0ea46Fe0E9e8EAB4aFb765b527739F2718671",
+                    "executionDuration": "30",
+                    "feeCosts": [
+                      {
+                        "name": "LP Fee",
+                        "description": "Fee paid to the Liquidity Provider",
+                        "token": {
+                          "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                          "chainId": "1",
+                          "symbol": "USDC",
+                          "decimals": "6",
+                          "name": "USD Coin",
+                          "coinKey": "USDC",
+                          "logoURI": "usdc.png",
+                          "priceUSD": "1"
+                        },
+                        "amount": "3000",
+                        "amountUSD": "0.01",
+                        "percentage": "0.003",
+                        "included": true
+                      }
+                    ],
+                    "gasCosts": [
+                      {
+                        "type": "SEND",
+                        "price": "17621901985",
+                        "estimate": "200000",
+                        "limit": "260000",
+                        "amount": "3524380397000000",
+                        "amountUSD": "7.81",
+                        "token": {
+                          "address": "0x0000000000000000000000000000000000000000",
+                          "chainId": "1",
+                          "symbol": "ETH",
+                          "decimals": "18",
+                          "name": "ETH",
+                          "coinKey": "ETH",
+                          "logoURI": "eth.png",
+                          "priceUSD": "2216.770000000000000000"
+                        }
+                      }
+                    ]
+                  },
+                  "tool": "verse-dex",
+                  "toolDetails": {
+                    "key": "verse-dex",
+                    "name": "Verse Dex",
+                    "logoURI": "https://analytics.verse.bitcoin.com/logo.png"
+                  }
+                },
+                {
+                  "id": "b952ed38-1d5c-43bc-990a-468fd32d29b9",
+                  "type": "cross",
+                  "action": {
+                    "fromChainId": "1",
+                    "fromAmount": "1008586",
+                    "fromToken": {
+                      "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                      "chainId": "1",
+                      "symbol": "USDT",
+                      "decimals": "6",
+                      "name": "USDT",
+                      "coinKey": "USDT",
+                      "logoURI": "usdt.png",
+                      "priceUSD": "0.999685"
+                    },
+                    "toChainId": "10",
+                    "toToken": {
+                      "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+                      "chainId": "10",
+                      "symbol": "USDT",
+                      "decimals": "6",
+                      "name": "USDT",
+                      "coinKey": "USDT",
+                      "logoURI": "usdt.png",
+                      "priceUSD": "0.999685"
+                    },
+                    "slippage": "0.005",
+                    "destinationGasConsumption": "0",
+                    "destinationCallData": "0x0"
+                  },
+                  "estimate": {
+                    "tool": "optimism",
+                    "fromAmount": "1013654",
+                    "toAmount": "1013654",
+                    "toAmountMin": "1008586",
+                    "approvalAddress": "0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1",
+                    "executionDuration": "76.944",
+                    "feeCosts": [],
+                    "gasCosts": [
+                      {
+                        "type": "SEND",
+                        "price": "17621901985",
+                        "estimate": "175000",
+                        "limit": "227500",
+                        "amount": "3083832847375000",
+                        "amountUSD": "6.84",
+                        "token": {
+                          "address": "0x0000000000000000000000000000000000000000",
+                          "chainId": "1",
+                          "symbol": "ETH",
+                          "decimals": "18",
+                          "name": "ETH",
+                          "coinKey": "ETH",
+                          "logoURI": "eth.png",
+                          "priceUSD": "2216.770000000000000000"
+                        }
+                      }
+                    ]
+                  },
+                  "tool": "optimism",
+                  "toolDetails": {
+                    "key": "optimism",
+                    "name": "Optimism Gateway",
+                    "logoURI": "optimism.png"
+                  }
+                }
+              ],
+              "integrator": "jumper.exchange"
+            }
+          ],
+          "tags": [
+            "RECOMMENDED",
+            "CHEAPEST",
+            "FASTEST"
+          ]
+        }
+      ]
+    })");
+
+    auto quote = lifi::ParseQuoteResponse(ParseJson(json));
+    ASSERT_TRUE(quote);
+    ASSERT_EQ(quote->routes.size(), 1u);
+    const auto& route = quote->routes.at(0);
+    EXPECT_EQ(
+        route->id,
+        "0x343bc553146a3dd8438518d80bd1b6957f3fec05d137ff65a940bfb5390d3f1f");
+    EXPECT_EQ(route->from_amount, "1000000");
+    EXPECT_EQ(route->from_token->contract_address,
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+    EXPECT_EQ(route->from_token->chain_id, "0x1");
+    EXPECT_EQ(route->from_token->symbol, "USDC");
+    EXPECT_EQ(route->from_token->decimals, 6);
+    EXPECT_EQ(route->from_token->name, "USD Coin");
+    EXPECT_EQ(route->from_token->logo, "usdc.png");
+    EXPECT_EQ(route->from_address,
+              "0xa92D461a9a988A7f11ec285d39783A637Fdd6ba4");
+    EXPECT_EQ(route->to_amount, "1013654");
+    EXPECT_EQ(route->to_amount_min, "1008586");
+    EXPECT_EQ(route->to_token->contract_address,
+              "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58");
+    EXPECT_EQ(route->to_token->chain_id, "0xa");
+    EXPECT_EQ(route->to_token->symbol, "USDT");
+    EXPECT_EQ(route->to_token->decimals, 6);
+    EXPECT_EQ(route->to_token->name, "USDT");
+    EXPECT_EQ(route->to_token->logo, "usdt.png");
+    EXPECT_EQ(route->to_address, "0xa92D461a9a988A7f11ec285d39783A637Fdd6ba4");
+
+    ASSERT_EQ(route->steps.size(), 1u);
+    const auto& step = route->steps.at(0);
+    EXPECT_EQ(step->type, mojom::LiFiStepType::kLiFi);
+    EXPECT_EQ(step->id, "5a6876f1-988e-4710-85b7-be2bd7681421");
+    EXPECT_EQ(step->tool, "optimism");
+    EXPECT_EQ(step->tool_details->key, "optimism");
+    EXPECT_EQ(step->tool_details->name, "Optimism Gateway");
+    EXPECT_EQ(step->tool_details->logo, "optimism.png");
+    EXPECT_EQ(step->action->from_token->contract_address,
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+    EXPECT_EQ(step->action->from_token->chain_id, "0x1");
+    EXPECT_EQ(step->action->from_token->symbol, "USDC");
+    EXPECT_EQ(step->action->from_token->decimals, 6);
+    EXPECT_EQ(step->action->from_token->name, "USD Coin");
+    EXPECT_EQ(step->action->from_token->logo, "usdc.png");
+    EXPECT_EQ(step->action->from_amount, "1000000");
+    EXPECT_EQ(step->action->to_token->contract_address,
+              "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58");
+    EXPECT_EQ(step->action->to_token->chain_id, "0xa");
+    EXPECT_EQ(step->action->to_token->symbol, "USDT");
+    EXPECT_EQ(step->action->to_token->decimals, 6);
+    EXPECT_EQ(step->action->to_token->name, "USDT");
+    EXPECT_EQ(step->action->to_token->logo, "usdt.png");
+    EXPECT_EQ(step->action->slippage, "0.005");
+    EXPECT_EQ(step->action->from_address,
+              "0xa92D461a9a988A7f11ec285d39783A637Fdd6ba4");
+    EXPECT_EQ(step->action->to_address,
+              "0xa92D461a9a988A7f11ec285d39783A637Fdd6ba4");
+    EXPECT_EQ(step->estimate->tool, "optimism");
+    EXPECT_EQ(step->estimate->approval_address,
+              "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE");
+    EXPECT_EQ(step->estimate->to_amount_min, "1008586");
+    EXPECT_EQ(step->estimate->to_amount, "1013654");
+    EXPECT_EQ(step->estimate->from_amount, "1000000");
+    ASSERT_EQ(step->estimate->fee_costs->size(), 1u);
+    const auto& fee_cost = step->estimate->fee_costs->at(0);
+    EXPECT_EQ(fee_cost->name, "LP Fee");
+    EXPECT_EQ(fee_cost->description, "Fee paid to the Liquidity Provider");
+    EXPECT_EQ(fee_cost->token->contract_address,
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+    EXPECT_EQ(fee_cost->token->chain_id, "0x1");
+    EXPECT_EQ(fee_cost->token->symbol, "USDC");
+    EXPECT_EQ(fee_cost->token->decimals, 6);
+    EXPECT_EQ(fee_cost->token->name, "USD Coin");
+    EXPECT_EQ(fee_cost->token->logo, "usdc.png");
+    EXPECT_EQ(fee_cost->amount, "3000");
+    EXPECT_EQ(fee_cost->percentage, "0.003");
+    EXPECT_TRUE(fee_cost->included);
+    ASSERT_EQ(step->estimate->gas_costs.size(), 1u);
+    const auto& gas_cost = step->estimate->gas_costs.at(0);
+    EXPECT_EQ(gas_cost->type, "SEND");
+    EXPECT_EQ(gas_cost->estimate, "375000");
+    EXPECT_EQ(gas_cost->limit, "618000");
+    EXPECT_EQ(gas_cost->amount, "6608213244375000");
+    EXPECT_EQ(gas_cost->token->contract_address, "");
+    EXPECT_EQ(gas_cost->token->chain_id, "0x1");
+    EXPECT_EQ(gas_cost->token->symbol, "ETH");
+    EXPECT_EQ(gas_cost->token->decimals, 18);
+    EXPECT_EQ(gas_cost->token->name, "ETH");
+    EXPECT_EQ(gas_cost->token->logo, "eth.png");
+    EXPECT_EQ(step->estimate->execution_duration, "106.944");
+
+    ASSERT_TRUE(step->included_steps);
+    ASSERT_EQ(step->included_steps->size(), 2u);
+    const auto& included_step_1 = step->included_steps->at(0);
+    EXPECT_EQ(included_step_1->id, "9ac4d9f1-9b72-463d-baf1-fcd8b09f8a8d");
+    EXPECT_EQ(included_step_1->type, mojom::LiFiStepType::kSwap);
+    EXPECT_EQ(included_step_1->tool, "verse-dex");
+    EXPECT_EQ(included_step_1->tool_details->key, "verse-dex");
+    EXPECT_EQ(included_step_1->tool_details->name, "Verse Dex");
+    EXPECT_EQ(included_step_1->tool_details->logo,
+              "https://analytics.verse.bitcoin.com/logo.png");
+    EXPECT_EQ(included_step_1->action->from_amount, "1000000");
+    EXPECT_EQ(included_step_1->action->from_token->contract_address,
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+    EXPECT_EQ(included_step_1->action->from_token->chain_id, "0x1");
+    EXPECT_EQ(included_step_1->action->from_token->symbol, "USDC");
+    EXPECT_EQ(included_step_1->action->from_token->decimals, 6);
+    EXPECT_EQ(included_step_1->action->from_token->name, "USD Coin");
+    EXPECT_EQ(included_step_1->action->from_token->logo, "usdc.png");
+    EXPECT_EQ(included_step_1->action->to_token->contract_address,
+              "0xdAC17F958D2ee523a2206206994597C13D831ec7");
+    EXPECT_EQ(included_step_1->action->to_token->chain_id, "0x1");
+    EXPECT_EQ(included_step_1->action->to_token->symbol, "USDT");
+    EXPECT_EQ(included_step_1->action->to_token->decimals, 6);
+    EXPECT_EQ(included_step_1->action->to_token->name, "USDT");
+    EXPECT_EQ(included_step_1->action->to_token->logo, "usdt.png");
+    EXPECT_EQ(included_step_1->action->slippage, "0.005");
+    EXPECT_EQ(included_step_1->estimate->tool, "verse-dex");
+    EXPECT_EQ(included_step_1->estimate->from_amount, "1000000");
+    EXPECT_EQ(included_step_1->estimate->to_amount, "1013654");
+    EXPECT_EQ(included_step_1->estimate->to_amount_min, "1008586");
+    EXPECT_EQ(included_step_1->estimate->approval_address,
+              "0xB4B0ea46Fe0E9e8EAB4aFb765b527739F2718671");
+    EXPECT_EQ(included_step_1->estimate->execution_duration, "30");
+    ASSERT_EQ(included_step_1->estimate->fee_costs->size(), 1u);
+    const auto& included_step_1_fee_cost =
+        included_step_1->estimate->fee_costs->at(0);
+    EXPECT_EQ(included_step_1_fee_cost->name, "LP Fee");
+    EXPECT_EQ(included_step_1_fee_cost->description,
+              "Fee paid to the Liquidity Provider");
+    EXPECT_EQ(included_step_1_fee_cost->token->contract_address,
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+    EXPECT_EQ(included_step_1_fee_cost->token->chain_id, "0x1");
+    EXPECT_EQ(included_step_1_fee_cost->token->symbol, "USDC");
+    EXPECT_EQ(included_step_1_fee_cost->token->decimals, 6);
+    EXPECT_EQ(included_step_1_fee_cost->token->name, "USD Coin");
+    EXPECT_EQ(included_step_1_fee_cost->token->logo, "usdc.png");
+    EXPECT_EQ(included_step_1_fee_cost->amount, "3000");
+    EXPECT_EQ(included_step_1_fee_cost->percentage, "0.003");
+    EXPECT_TRUE(included_step_1_fee_cost->included);
+    ASSERT_EQ(included_step_1->estimate->gas_costs.size(), 1u);
+    const auto& included_step_1_gas_cost =
+        included_step_1->estimate->gas_costs.at(0);
+    EXPECT_EQ(included_step_1_gas_cost->type, "SEND");
+    EXPECT_EQ(included_step_1_gas_cost->estimate, "200000");
+    EXPECT_EQ(included_step_1_gas_cost->limit, "260000");
+    EXPECT_EQ(included_step_1_gas_cost->amount, "3524380397000000");
+    EXPECT_EQ(included_step_1_gas_cost->token->contract_address, "");
+    EXPECT_EQ(included_step_1_gas_cost->token->chain_id, "0x1");
+    EXPECT_EQ(included_step_1_gas_cost->token->symbol, "ETH");
+    EXPECT_EQ(included_step_1_gas_cost->token->decimals, 18);
+    EXPECT_EQ(included_step_1_gas_cost->token->name, "ETH");
+    EXPECT_EQ(included_step_1_gas_cost->token->logo, "eth.png");
+    EXPECT_FALSE(included_step_1->included_steps);
+
+    const auto& included_step_2 = step->included_steps->at(1);
+    EXPECT_EQ(included_step_2->id, "b952ed38-1d5c-43bc-990a-468fd32d29b9");
+    EXPECT_EQ(included_step_2->type, mojom::LiFiStepType::kCross);
+    EXPECT_EQ(included_step_2->tool, "optimism");
+    EXPECT_EQ(included_step_2->tool_details->key, "optimism");
+    EXPECT_EQ(included_step_2->tool_details->name, "Optimism Gateway");
+    EXPECT_EQ(included_step_2->tool_details->logo, "optimism.png");
+    EXPECT_EQ(included_step_2->action->from_amount, "1008586");
+    EXPECT_EQ(included_step_2->action->from_token->contract_address,
+              "0xdAC17F958D2ee523a2206206994597C13D831ec7");
+    EXPECT_EQ(included_step_2->action->from_token->chain_id, "0x1");
+    EXPECT_EQ(included_step_2->action->from_token->symbol, "USDT");
+    EXPECT_EQ(included_step_2->action->from_token->decimals, 6);
+    EXPECT_EQ(included_step_2->action->from_token->name, "USDT");
+    EXPECT_EQ(included_step_2->action->from_token->logo, "usdt.png");
+    EXPECT_EQ(included_step_2->action->to_token->contract_address,
+              "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58");
+    EXPECT_EQ(included_step_2->action->to_token->chain_id, "0xa");
+    EXPECT_EQ(included_step_2->action->to_token->symbol, "USDT");
+    EXPECT_EQ(included_step_2->action->to_token->decimals, 6);
+    EXPECT_EQ(included_step_2->action->to_token->name, "USDT");
+    EXPECT_EQ(included_step_2->action->to_token->logo, "usdt.png");
+    EXPECT_EQ(included_step_2->action->slippage, "0.005");
+    EXPECT_EQ(included_step_2->action->destination_call_data, "0x0");
+    EXPECT_EQ(included_step_2->estimate->tool, "optimism");
+    EXPECT_EQ(included_step_2->estimate->from_amount, "1013654");
+    EXPECT_EQ(included_step_2->estimate->to_amount, "1013654");
+    EXPECT_EQ(included_step_2->estimate->to_amount_min, "1008586");
+    EXPECT_EQ(included_step_2->estimate->approval_address,
+              "0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1");
+    EXPECT_EQ(included_step_2->estimate->execution_duration, "76.944");
+    EXPECT_TRUE(included_step_2->estimate->fee_costs->empty());
+    ASSERT_EQ(included_step_2->estimate->gas_costs.size(), 1u);
+    const auto& included_step_2_gas_cost =
+        included_step_2->estimate->gas_costs.at(0);
+    EXPECT_EQ(included_step_2_gas_cost->type, "SEND");
+    EXPECT_EQ(included_step_2_gas_cost->estimate, "175000");
+    EXPECT_EQ(included_step_2_gas_cost->limit, "227500");
+    EXPECT_EQ(included_step_2_gas_cost->amount, "3083832847375000");
+    EXPECT_EQ(included_step_2_gas_cost->token->contract_address, "");
+    EXPECT_EQ(included_step_2_gas_cost->token->chain_id, "0x1");
+    EXPECT_EQ(included_step_2_gas_cost->token->symbol, "ETH");
+    EXPECT_EQ(included_step_2_gas_cost->token->decimals, 18);
+    EXPECT_EQ(included_step_2_gas_cost->token->name, "ETH");
+    EXPECT_EQ(included_step_2_gas_cost->token->logo, "eth.png");
+    EXPECT_FALSE(included_step_2->included_steps);
+
+    ASSERT_EQ(route->tags.size(), 3u);
+    EXPECT_EQ(route->tags.at(0), "RECOMMENDED");
+    EXPECT_EQ(route->tags.at(1), "CHEAPEST");
+    EXPECT_EQ(route->tags.at(2), "FASTEST");
+
+    EXPECT_EQ(route->unique_id, "optimism");
+  }
+
+  {
+    // OK: USDC.e on Polygon --> SOL on Solana
+    std::string json(R"(
+      {
+        "routes": [
+          {
+            "id": "4c901782-830f-454e-9ed8-6d246829799f",
+            "fromChainId": "137",
+            "fromAmountUSD": "20.00",
+            "fromAmount": "20000000",
+            "fromToken": {
+              "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+              "chainId": "137",
+              "symbol": "USDC.e",
+              "decimals": "6",
+              "name": "Bridged USD Coin",
+              "coinKey": "USDCe",
+              "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+              "priceUSD": "1"
+            },
+            "fromAddress": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+            "toChainId": "1151111081099710",
+            "toAmountUSD": "17.15",
+            "toAmount": "107802690",
+            "toAmountMin": "104568610",
+            "toToken": {
+              "address": "11111111111111111111111111111111",
+              "chainId": "1151111081099710",
+              "symbol": "SOL",
+              "decimals": "9",
+              "name": "SOL",
+              "coinKey": "SOL",
+              "logoURI": "https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png",
+              "priceUSD": "159.11"
+            },
+            "toAddress": "S5ARSDD3ddZqqqqqb2EUE2h2F1XQHBk7bErRW1WPGe4",
+            "gasCostUSD": "0.01",
+            "containsSwitchChain": false,
+            "steps": [
+              {
+                "type": "lifi",
+                "id": "4c901782-830f-454e-9ed8-6d246829799f:0",
+                "tool": "mayan",
+                "toolDetails": {
+                  "key": "mayan",
+                  "name": "Mayan",
+                  "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/mayan.png"
+                },
+                "action": {
+                  "fromToken": {
+                    "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+                    "chainId": "137",
+                    "symbol": "USDC.e",
+                    "decimals": "6",
+                    "name": "Bridged USD Coin",
+                    "coinKey": "USDCe",
+                    "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                    "priceUSD": "1"
+                  },
+                  "fromAmount": "20000000",
+                  "toToken": {
+                    "address": "11111111111111111111111111111111",
+                    "chainId": "1151111081099710",
+                    "symbol": "SOL",
+                    "decimals": "9",
+                    "name": "SOL",
+                    "coinKey": "SOL",
+                    "logoURI": "https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png",
+                    "priceUSD": "159.11"
+                  },
+                  "fromChainId": "137",
+                  "toChainId": "1151111081099710",
+                  "slippage": "0.03",
+                  "fromAddress": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+                  "toAddress": "S5ARSDD3ddZqqqqqb2EUE2h2F1XQHBk7bErRW1WPGe4"
+                },
+                "estimate": {
+                  "tool": "mayan",
+                  "approvalAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+                  "toAmountMin": "104568610",
+                  "toAmount": "107802690",
+                  "fromAmount": "20000000",
+                  "feeCosts": [
+                    {
+                      "name": "Swap Relayer Fee",
+                      "description": "Fee for the swap relayer",
+                      "token": {
+                        "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+                        "chainId": "137",
+                        "symbol": "USDC.e",
+                        "decimals": "6",
+                        "name": "Bridged USD Coin",
+                        "coinKey": "USDCe",
+                        "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                        "priceUSD": "1"
+                      },
+                      "amount": "2746612",
+                      "amountUSD": "2.75",
+                      "percentage": "0.1373305975",
+                      "included": true
+                    }
+                  ],
+                  "gasCosts": [
+                    {
+                      "type": "SEND",
+                      "price": "43687550986",
+                      "estimate": "370000",
+                      "limit": "513000",
+                      "amount": "16164393864820000",
+                      "amountUSD": "0.01",
+                      "token": {
+                        "address": "0x0000000000000000000000000000000000000000",
+                        "chainId": "137",
+                        "symbol": "MATIC",
+                        "decimals": "18",
+                        "name": "MATIC",
+                        "coinKey": "MATIC",
+                        "logoURI": "https://static.debank.com/image/matic_token/logo_url/matic/6f5a6b6f0732a7a235131bd7804d357c.png",
+                        "priceUSD": "0.4077"
+                      }
+                    }
+                  ],
+                  "executionDuration": "368",
+                  "fromAmountUSD": "20.00",
+                  "toAmountUSD": "17.15"
+                },
+                "includedSteps": [
+                  {
+                    "id": "e003be5c-5099-4f3a-8053-efb5767c4ba8",
+                    "type": "cross",
+                    "action": {
+                      "fromChainId": "137",
+                      "fromAmount": "20000000",
+                      "fromToken": {
+                        "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+                        "chainId": "137",
+                        "symbol": "USDC.e",
+                        "decimals": "6",
+                        "name": "Bridged USD Coin",
+                        "coinKey": "USDCe",
+                        "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                        "priceUSD": "1"
+                      },
+                      "toChainId": "1151111081099710",
+                      "toToken": {
+                        "address": "11111111111111111111111111111111",
+                        "chainId": "1151111081099710",
+                        "symbol": "SOL",
+                        "decimals": "9",
+                        "name": "SOL",
+                        "coinKey": "SOL",
+                        "logoURI": "https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png",
+                        "priceUSD": "159.11"
+                      },
+                      "slippage": "0.03",
+                      "fromAddress": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+                      "destinationGasConsumption": "0"
+                    },
+                    "estimate": {
+                      "tool": "mayan",
+                      "fromAmount": "20000000",
+                      "toAmount": "107802690",
+                      "toAmountMin": "104568610",
+                      "gasCosts": [
+                        {
+                          "type": "SEND",
+                          "price": "43687550986",
+                          "estimate": "370000",
+                          "limit": "555000",
+                          "amount": "16164393864820000",
+                          "amountUSD": "0.01",
+                          "token": {
+                            "address": "0x0000000000000000000000000000000000000000",
+                            "chainId": "137",
+                            "symbol": "MATIC",
+                            "decimals": "18",
+                            "name": "MATIC",
+                            "coinKey": "MATIC",
+                            "logoURI": "https://static.debank.com/image/matic_token/logo_url/matic/6f5a6b6f0732a7a235131bd7804d357c.png",
+                            "priceUSD": "0.4077"
+                          }
+                        }
+                      ],
+                      "executionDuration": "368",
+                      "approvalAddress": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+                      "feeCosts": [
+                        {
+                          "name": "Swap Relayer Fee",
+                          "description": "Fee for the swap relayer",
+                          "token": {
+                            "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+                            "chainId": "137",
+                            "symbol": "USDC.e",
+                            "decimals": "6",
+                            "name": "Bridged USD Coin",
+                            "coinKey": "USDCe",
+                            "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                            "priceUSD": "1"
+                          },
+                          "amount": "2746612",
+                          "amountUSD": "2.75",
+                          "percentage": "0.1373305975",
+                          "included": true
+                        }
+                      ]
+                    },
+                    "tool": "mayan",
+                    "toolDetails": {
+                      "key": "mayan",
+                      "name": "Mayan",
+                      "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/mayan.png"
+                    }
+                  }
+                ],
+                "integrator": "lifi-api"
+              }
+            ],
+            "tags": [
+              "RECOMMENDED",
+              "CHEAPEST",
+              "FASTEST"
+            ]
+          }
+        ],
+        "unavailableRoutes": {
+          "filteredOut": [],
+          "failed": []
+        }
+      }
+    )");
+
+    auto quote = lifi::ParseQuoteResponse(ParseJson(json));
+    ASSERT_TRUE(quote);
+
+    ASSERT_EQ(quote->routes.size(), 1u);
+    const auto& route = quote->routes.at(0);
+    EXPECT_EQ(route->id, "4c901782-830f-454e-9ed8-6d246829799f");
+    EXPECT_EQ(route->from_amount, "20000000");
+    EXPECT_EQ(route->from_token->contract_address,
+              "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174");
+    EXPECT_EQ(route->from_token->chain_id, "0x89");
+    EXPECT_EQ(route->from_token->symbol, "USDC.e");
+    EXPECT_EQ(route->from_token->decimals, 6);
+    EXPECT_EQ(route->from_token->name, "Bridged USD Coin");
+    EXPECT_EQ(route->from_token->logo,
+              "https://raw.githubusercontent.com/trustwallet/assets/master/"
+              "blockchains/ethereum/assets/"
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png");
+    EXPECT_EQ(route->from_address,
+              "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0");
+    EXPECT_EQ(route->to_amount, "107802690");
+    EXPECT_EQ(route->to_amount_min, "104568610");
+    EXPECT_EQ(route->to_token->contract_address, "");
+    EXPECT_EQ(route->to_token->chain_id, "0x65");
+    EXPECT_EQ(route->to_token->symbol, "SOL");
+    EXPECT_EQ(route->to_token->decimals, 9);
+    EXPECT_EQ(route->to_token->name, "SOL");
+    EXPECT_EQ(route->to_token->logo,
+              "https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png");
+    EXPECT_EQ(route->to_address, "S5ARSDD3ddZqqqqqb2EUE2h2F1XQHBk7bErRW1WPGe4");
+
+    ASSERT_EQ(route->steps.size(), 1u);
+    const auto& step = route->steps.at(0);
+    EXPECT_EQ(step->type, mojom::LiFiStepType::kLiFi);
+    EXPECT_EQ(step->id, "4c901782-830f-454e-9ed8-6d246829799f:0");
+    EXPECT_EQ(step->tool, "mayan");
+    EXPECT_EQ(step->tool_details->key, "mayan");
+    EXPECT_EQ(step->tool_details->name, "Mayan");
+    EXPECT_EQ(step->tool_details->logo,
+              "https://raw.githubusercontent.com/lifinance/types/main/src/"
+              "assets/icons/bridges/mayan.png");
+    EXPECT_EQ(step->action->from_token->contract_address,
+              "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174");
+    EXPECT_EQ(step->action->from_token->chain_id, "0x89");
+    EXPECT_EQ(step->action->from_token->symbol, "USDC.e");
+    EXPECT_EQ(step->action->from_token->decimals, 6);
+    EXPECT_EQ(step->action->from_token->name, "Bridged USD Coin");
+    EXPECT_EQ(step->action->from_token->logo,
+              "https://raw.githubusercontent.com/trustwallet/assets/master/"
+              "blockchains/ethereum/assets/"
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png");
+    EXPECT_EQ(step->action->from_amount, "20000000");
+    EXPECT_EQ(step->action->to_token->contract_address, "");
+    EXPECT_EQ(step->action->to_token->chain_id, "0x65");
+    EXPECT_EQ(step->action->to_token->symbol, "SOL");
+    EXPECT_EQ(step->action->to_token->decimals, 9);
+    EXPECT_EQ(step->action->to_token->name, "SOL");
+    EXPECT_EQ(step->action->to_token->logo,
+              "https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png");
+    EXPECT_EQ(step->action->slippage, "0.03");
+    EXPECT_EQ(step->action->from_address,
+              "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0");
+    EXPECT_EQ(step->action->to_address,
+              "S5ARSDD3ddZqqqqqb2EUE2h2F1XQHBk7bErRW1WPGe4");
+    EXPECT_EQ(step->estimate->tool, "mayan");
+    EXPECT_EQ(step->estimate->approval_address,
+              "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE");
+    EXPECT_EQ(step->estimate->to_amount_min, "104568610");
+    EXPECT_EQ(step->estimate->to_amount, "107802690");
+    EXPECT_EQ(step->estimate->from_amount, "20000000");
+    ASSERT_EQ(step->estimate->fee_costs->size(), 1u);
+    const auto& fee_cost = step->estimate->fee_costs->at(0);
+    EXPECT_EQ(fee_cost->name, "Swap Relayer Fee");
+    EXPECT_EQ(fee_cost->description, "Fee for the swap relayer");
+    EXPECT_EQ(fee_cost->token->contract_address,
+              "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174");
+    EXPECT_EQ(fee_cost->token->chain_id, "0x89");
+    EXPECT_EQ(fee_cost->token->symbol, "USDC.e");
+    EXPECT_EQ(fee_cost->token->decimals, 6);
+    EXPECT_EQ(fee_cost->token->name, "Bridged USD Coin");
+    EXPECT_EQ(fee_cost->token->logo,
+              "https://raw.githubusercontent.com/trustwallet/assets/master/"
+              "blockchains/ethereum/assets/"
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png");
+    EXPECT_EQ(fee_cost->amount, "2746612");
+    EXPECT_EQ(fee_cost->percentage, "0.1373305975");
+    EXPECT_TRUE(fee_cost->included);
+    ASSERT_EQ(step->estimate->gas_costs.size(), 1u);
+    const auto& gas_cost = step->estimate->gas_costs.at(0);
+    EXPECT_EQ(gas_cost->type, "SEND");
+    EXPECT_EQ(gas_cost->estimate, "370000");
+    EXPECT_EQ(gas_cost->limit, "513000");
+    EXPECT_EQ(gas_cost->amount, "16164393864820000");
+    EXPECT_EQ(gas_cost->token->contract_address, "");
+    EXPECT_EQ(gas_cost->token->chain_id, "0x89");
+    EXPECT_EQ(gas_cost->token->symbol, "MATIC");
+    EXPECT_EQ(gas_cost->token->decimals, 18);
+    EXPECT_EQ(gas_cost->token->name, "MATIC");
+    EXPECT_EQ(gas_cost->token->logo,
+              "https://static.debank.com/image/matic_token/logo_url/matic/"
+              "6f5a6b6f0732a7a235131bd7804d357c.png");
+    EXPECT_EQ(step->estimate->execution_duration, "368");
+
+    ASSERT_TRUE(step->included_steps);
+    ASSERT_EQ(step->included_steps->size(), 1u);
+    const auto& included_step = step->included_steps->at(0);
+    EXPECT_EQ(included_step->id, "e003be5c-5099-4f3a-8053-efb5767c4ba8");
+    EXPECT_EQ(included_step->type, mojom::LiFiStepType::kCross);
+    EXPECT_EQ(included_step->tool, "mayan");
+    EXPECT_EQ(included_step->tool_details->key, "mayan");
+    EXPECT_EQ(included_step->tool_details->name, "Mayan");
+    EXPECT_EQ(included_step->tool_details->logo,
+              "https://raw.githubusercontent.com/lifinance/types/main/src/"
+              "assets/icons/bridges/mayan.png");
+    EXPECT_EQ(included_step->action->from_token->contract_address,
+              "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174");
+    EXPECT_EQ(included_step->action->from_token->chain_id, "0x89");
+    EXPECT_EQ(included_step->action->from_token->symbol, "USDC.e");
+    EXPECT_EQ(included_step->action->from_token->decimals, 6);
+    EXPECT_EQ(included_step->action->from_token->name, "Bridged USD Coin");
+    EXPECT_EQ(included_step->action->from_token->logo,
+              "https://raw.githubusercontent.com/trustwallet/assets/master/"
+              "blockchains/ethereum/assets/"
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png");
+    EXPECT_EQ(included_step->action->from_amount, "20000000");
+    EXPECT_EQ(included_step->action->to_token->contract_address, "");
+    EXPECT_EQ(included_step->action->to_token->chain_id, "0x65");
+    EXPECT_EQ(included_step->action->to_token->symbol, "SOL");
+    EXPECT_EQ(included_step->action->to_token->decimals, 9);
+    EXPECT_EQ(included_step->action->to_token->name, "SOL");
+    EXPECT_EQ(included_step->action->to_token->logo,
+              "https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png");
+    EXPECT_EQ(included_step->action->slippage, "0.03");
+    EXPECT_EQ(included_step->action->from_address,
+              "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0");
+    EXPECT_EQ(included_step->estimate->tool, "mayan");
+    EXPECT_EQ(included_step->estimate->from_amount, "20000000");
+    EXPECT_EQ(included_step->estimate->to_amount, "107802690");
+    EXPECT_EQ(included_step->estimate->to_amount_min, "104568610");
+    ASSERT_EQ(included_step->estimate->gas_costs.size(), 1u);
+    const auto& included_step_gas_cost =
+        included_step->estimate->gas_costs.at(0);
+    EXPECT_EQ(included_step_gas_cost->type, "SEND");
+    EXPECT_EQ(included_step_gas_cost->estimate, "370000");
+    EXPECT_EQ(included_step_gas_cost->limit, "555000");
+    EXPECT_EQ(included_step_gas_cost->amount, "16164393864820000");
+    EXPECT_EQ(included_step_gas_cost->token->contract_address, "");
+    EXPECT_EQ(included_step_gas_cost->token->chain_id, "0x89");
+    EXPECT_EQ(included_step_gas_cost->token->symbol, "MATIC");
+    EXPECT_EQ(included_step_gas_cost->token->decimals, 18);
+    EXPECT_EQ(included_step_gas_cost->token->name, "MATIC");
+    EXPECT_EQ(included_step_gas_cost->token->logo,
+              "https://static.debank.com/image/matic_token/logo_url/matic/"
+              "6f5a6b6f0732a7a235131bd7804d357c.png");
+    EXPECT_EQ(included_step->estimate->execution_duration, "368");
+    EXPECT_EQ(included_step->estimate->approval_address,
+              "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0");
+    ASSERT_EQ(included_step->estimate->fee_costs->size(), 1u);
+    const auto& included_step_fee_cost =
+        included_step->estimate->fee_costs->at(0);
+    EXPECT_EQ(included_step_fee_cost->name, "Swap Relayer Fee");
+    EXPECT_EQ(included_step_fee_cost->description, "Fee for the swap relayer");
+    EXPECT_EQ(included_step_fee_cost->token->contract_address,
+              "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174");
+    EXPECT_EQ(included_step_fee_cost->token->chain_id, "0x89");
+    EXPECT_EQ(included_step_fee_cost->token->symbol, "USDC.e");
+    EXPECT_EQ(included_step_fee_cost->token->decimals, 6);
+    EXPECT_EQ(included_step_fee_cost->token->name, "Bridged USD Coin");
+    EXPECT_EQ(included_step_fee_cost->token->logo,
+              "https://raw.githubusercontent.com/trustwallet/assets/master/"
+              "blockchains/ethereum/assets/"
+              "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png");
+    EXPECT_EQ(included_step_fee_cost->amount, "2746612");
+    EXPECT_EQ(included_step_fee_cost->percentage, "0.1373305975");
+    EXPECT_TRUE(included_step_fee_cost->included);
+
+    ASSERT_EQ(route->tags.size(), 3u);
+    EXPECT_EQ(route->tags.at(0), "RECOMMENDED");
+    EXPECT_EQ(route->tags.at(1), "CHEAPEST");
+    EXPECT_EQ(route->tags.at(2), "FASTEST");
+  }
+}
+
+TEST(SwapResponseParserUnitTest, ParseLiFiTransactionResponse) {
+  {
+    // OK: valid Solana transaction
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "data": "b255Yg=="
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    ASSERT_TRUE(transaction);
+    ASSERT_TRUE(transaction->is_solana_transaction());
+    EXPECT_EQ(transaction->get_solana_transaction(), "b255Yg==");
+  }
+
+  {
+    // KO: empty data field
+    std::string json(R"(
+    {
+      "transactionRequest": {}
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // KO: missing transactionRequest field
+    std::string json(R"(
+    {
+      "foobar": 123
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // OK: valid EVM transaction
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "from": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+        "to": "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        "chainId": "100",
+        "data": "0x...",
+        "value": "0x0de0b6b3a7640000",
+        "gasPrice": "0xb2d05e00",
+        "gasLimit": "0x0e9cb2"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    ASSERT_TRUE(transaction);
+    ASSERT_TRUE(transaction->is_evm_transaction());
+    const auto& evm_transaction = transaction->get_evm_transaction();
+    EXPECT_EQ(evm_transaction->from,
+              "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0");
+    EXPECT_EQ(evm_transaction->to,
+              "0x1111111254fb6c44bac0bed2854e76f90643097d");
+    EXPECT_EQ(evm_transaction->chain_id, "0x64");
+    EXPECT_EQ(evm_transaction->data, "0x...");
+    EXPECT_EQ(evm_transaction->value, "0x0de0b6b3a7640000");
+    EXPECT_EQ(evm_transaction->gas_price, "0xb2d05e00");
+    EXPECT_EQ(evm_transaction->gas_limit, "0x0e9cb2");
+  }
+
+  {
+    // KO: missing from field
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "to": "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        "chainId": "100",
+        "data": "0x...",
+        "value": "0x0de0b6b3a7640000",
+        "gasPrice": "0xb2d05e00",
+        "gasLimit": "0x0e9cb2"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // KO: missing to field
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "from": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+        "chainId": "100",
+        "data": "0x...",
+        "value": "0x0de0b6b3a7640000",
+        "gasPrice": "0xb2d05e00",
+        "gasLimit": "0x0e9cb2"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // KO: missing chainId field
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "from": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+        "to": "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        "data": "0x...",
+        "value": "0x0de0b6b3a7640000",
+        "gasPrice": "0xb2d05e00",
+        "gasLimit": "0x0e9cb2"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // KO: missing data field
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "from": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+        "to": "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        "chainId": "100",
+        "value": "0x0de0b6b3a7640000",
+        "gasPrice": "0xb2d05e00",
+        "gasLimit": "0x0e9cb2"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // KO: missing value field
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "from": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+        "to": "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        "chainId": "100",
+        "data": "0x...",
+        "gasPrice": "0xb2d05e00",
+        "gasLimit": "0x0e9cb2"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // KO: missing gasPrice field
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "from": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+        "to": "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        "chainId": "100",
+        "data": "0x...",
+        "value": "0x0de0b6b3a7640000",
+        "gasLimit": "0x0e9cb2"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // KO: missing gasLimit field
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "from": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+        "to": "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        "chainId": "100",
+        "data": "0x...",
+        "value": "0x0de0b6b3a7640000",
+        "gasPrice": "0xb2d05e00"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+
+  {
+    // KO: invalid chainId field
+    std::string json(R"(
+    {
+      "transactionRequest": {
+        "from": "0x552008c0f6870c2f77e5cC1d2eb9bdff03e30Ea0",
+        "to": "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        "chainId": "foobar",
+        "data": "0x...",
+        "value": "0x0de0b6b3a7640000",
+        "gasPrice": "0xb2d05e00"
+      }
+    })");
+
+    auto transaction = lifi::ParseTransactionResponse(ParseJson(json));
+    EXPECT_FALSE(transaction);
+  }
+}
+
+TEST(SwapResponseParserUnitTest, ParseLiFiErrorResponse) {
+  std::string json(R"(
+    {
+      "message": "Invalid request"
+    }
+  )");
+
+  auto error = lifi::ParseErrorResponse(ParseJson(json));
+  ASSERT_TRUE(error);
+  EXPECT_EQ(error->message, "Invalid request");
+}
+
+TEST(SwapResponseParserUnitTest, ParseLiFiStatusResponse) {
+  std::string json(R"(
+    {
+      "transactionId": "0x0a0e6ac13786c9a3a68f55bbb5eeb3b31a7a25e7e2aa3641c545fd3869da8016",
+      "sending": {
+        "txHash": "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb",
+        "txLink": "https://optimistic.etherscan.io/tx/0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb",
+        "amount": "2516860",
+        "token": {
+          "address": "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
+          "chainId": "10",
+          "symbol": "USDC.e",
+          "decimals": "6",
+          "name": "Bridged USD Coin",
+          "coinKey": "USDCe",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+          "priceUSD": "1"
+        },
+        "chainId": "10",
+        "gasPrice": "61761647",
+        "gasUsed": "239193",
+        "gasToken": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "chainId": "10",
+          "symbol": "ETH",
+          "decimals": "18",
+          "name": "ETH",
+          "coinKey": "ETH",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "priceUSD": "3399.92"
+        },
+        "gasAmount": "14772953630871",
+        "gasAmountUSD": "0.05",
+        "amountUSD": "2.52",
+        "value": "0",
+        "timestamp": "1721381005"
+      },
+      "receiving": {
+        "txHash": "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb",
+        "txLink": "https://optimistic.etherscan.io/tx/0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb",
+        "amount": "741223046975948",
+        "token": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "chainId": "10",
+          "symbol": "ETH",
+          "decimals": "18",
+          "name": "ETH",
+          "coinKey": "ETH",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "priceUSD": "3399.92"
+        },
+        "chainId": "10",
+        "gasPrice": "61761647",
+        "gasUsed": "239193",
+        "gasToken": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "chainId": "10",
+          "symbol": "ETH",
+          "decimals": "18",
+          "name": "ETH",
+          "coinKey": "ETH",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "priceUSD": "3399.92"
+        },
+        "gasAmount": "14772953630871",
+        "gasAmountUSD": "0.05",
+        "amountUSD": "2.52",
+        "value": "0",
+        "timestamp": "1721381005"
+      },
+      "lifiExplorerLink": "https://explorer.li.fi/tx/0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb",
+      "fromAddress": "0xa92d461a9a988a7f11ec285d39783a637fdd6ba4",
+      "toAddress": "0xa92d461a9a988a7f11ec285d39783a637fdd6ba4",
+      "tool": "paraswap",
+      "status": "DONE",
+      "substatus": "COMPLETED",
+      "substatusMessage": "The transfer is complete.",
+      "metadata": {
+        "integrator": "brave"
+      }
+    }
+  )");
+
+  auto response = lifi::ParseStatusResponse(ParseJson(json));
+  ASSERT_TRUE(response);
+
+  EXPECT_EQ(
+      response->transaction_id,
+      "0x0a0e6ac13786c9a3a68f55bbb5eeb3b31a7a25e7e2aa3641c545fd3869da8016");
+  EXPECT_EQ(response->sending->chain_id, "0xa");
+  EXPECT_EQ(
+      response->sending->tx_hash,
+      "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb");
+  EXPECT_EQ(
+      response->sending->tx_link,
+      "https://optimistic.etherscan.io/tx/"
+      "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb");
+  EXPECT_EQ(response->sending->amount, "2516860");
+  EXPECT_EQ(response->sending->contract_address,
+            "0x7F5c764cBc14f9669B88837ca1490cCa17c31607");
+
+  EXPECT_EQ(response->receiving->chain_id, "0xa");
+  EXPECT_EQ(
+      response->receiving->tx_hash,
+      "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb");
+  EXPECT_EQ(
+      response->receiving->tx_link,
+      "https://optimistic.etherscan.io/tx/"
+      "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb");
+  EXPECT_EQ(response->receiving->amount, "741223046975948");
+  EXPECT_EQ(response->receiving->contract_address,
+            "0x0000000000000000000000000000000000000000");
+
+  EXPECT_EQ(
+      response->lifi_explorer_link,
+      "https://explorer.li.fi/tx/"
+      "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb");
+  EXPECT_EQ(response->from_address,
+            "0xa92d461a9a988a7f11ec285d39783a637fdd6ba4");
+  EXPECT_EQ(response->to_address, "0xa92d461a9a988a7f11ec285d39783a637fdd6ba4");
+  EXPECT_EQ(response->tool, "paraswap");
+  EXPECT_EQ(response->status, mojom::LiFiStatusCode::kDone);
+  EXPECT_EQ(response->substatus, mojom::LiFiSubstatusCode::kCompleted);
+  EXPECT_EQ(response->substatus_message, "The transfer is complete.");
+
+  json = R"(
+    {
+      "transactionId": "0x0a0e6ac13786c9a3a68f55bbb5eeb3b31a7a25e7e2aa3641c545fd3869da8016",
+      "sending": {
+        "txHash": "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb",
+        "txLink": "https://optimistic.etherscan.io/tx/0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb",
+        "amount": "2516860",
+        "token": {
+          "address": "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
+          "chainId": "10",
+          "symbol": "USDC.e",
+          "decimals": "6",
+          "name": "Bridged USD Coin",
+          "coinKey": "USDCe",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+          "priceUSD": "1"
+        },
+        "chainId": "10",
+        "gasPrice": "61761647",
+        "gasUsed": "239193",
+        "gasToken": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "chainId": "10",
+          "symbol": "ETH",
+          "decimals": "18",
+          "name": "ETH",
+          "coinKey": "ETH",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "priceUSD": "3399.92"
+        },
+        "gasAmount": "14772953630871",
+        "gasAmountUSD": "0.05",
+        "amountUSD": "2.52",
+        "value": "0",
+        "timestamp": "1721381005"
+      },
+      "receiving": {
+        "chainId": "10"
+      },
+      "lifiExplorerLink": "https://explorer.li.fi/tx/0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb",
+      "fromAddress": "0xa92d461a9a988a7f11ec285d39783a637fdd6ba4",
+      "toAddress": "0xa92d461a9a988a7f11ec285d39783a637fdd6ba4",
+      "tool": "paraswap",
+      "status": "PENDING",
+      "substatus": "WAIT_DESTINATION_TRANSACTION",
+      "substatusMessage": "The transfer is waiting for destination transaction.",
+      "metadata": {
+        "integrator": "brave"
+      }
+    }
+  )";
+
+  response = lifi::ParseStatusResponse(ParseJson(json));
+  ASSERT_TRUE(response);
+
+  EXPECT_EQ(
+      response->transaction_id,
+      "0x0a0e6ac13786c9a3a68f55bbb5eeb3b31a7a25e7e2aa3641c545fd3869da8016");
+  EXPECT_EQ(response->sending->chain_id, "0xa");
+  EXPECT_EQ(
+      response->sending->tx_hash,
+      "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb");
+  EXPECT_EQ(
+      response->sending->tx_link,
+      "https://optimistic.etherscan.io/tx/"
+      "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb");
+  EXPECT_EQ(response->sending->amount, "2516860");
+  EXPECT_EQ(response->sending->contract_address,
+            "0x7F5c764cBc14f9669B88837ca1490cCa17c31607");
+
+  EXPECT_EQ(response->receiving->chain_id, "0xa");
+  EXPECT_EQ(response->receiving->tx_hash, std::nullopt);
+  EXPECT_EQ(response->receiving->tx_link, std::nullopt);
+  EXPECT_EQ(response->receiving->amount, std::nullopt);
+  EXPECT_EQ(response->receiving->contract_address, std::nullopt);
+
+  EXPECT_EQ(
+      response->lifi_explorer_link,
+      "https://explorer.li.fi/tx/"
+      "0x1263d8b3cb3cf4e3ec0f9df5947e3846e2c6b1fb2bcc3740e36514c2ddd87cbb");
+  EXPECT_EQ(response->from_address,
+            "0xa92d461a9a988a7f11ec285d39783a637fdd6ba4");
+  EXPECT_EQ(response->to_address, "0xa92d461a9a988a7f11ec285d39783a637fdd6ba4");
+  EXPECT_EQ(response->tool, "paraswap");
+  EXPECT_EQ(response->status, mojom::LiFiStatusCode::kPending);
+  EXPECT_EQ(response->substatus,
+            mojom::LiFiSubstatusCode::kWaitDestinationTransaction);
+  EXPECT_EQ(response->substatus_message,
+            "The transfer is waiting for destination transaction.");
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3QuoteResponse) {
+  // Indicative quote response from Gate3 API
+  std::string json(R"(
+    {
+      "routes": [
+        {
+          "id": "ni_da99b36c884a",
+          "provider": "NEAR_INTENTS",
+          "steps": [
+            {
+              "sourceToken": {
+                "coin": "ETH",
+                "chainId": "0x1",
+                "contractAddress": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                "symbol": "USDC",
+                "decimals": "6",
+                "logo": null
+              },
+              "sourceAmount": "1000000",
+              "destinationToken": {
+                "coin": "SOL",
+                "chainId": "0x65",
+                "contractAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                "symbol": "USDC",
+                "decimals": "6",
+                "logo": null
+              },
+              "destinationAmount": "714449",
+              "tool": {
+                "name": "NEAR Intents",
+                "logo": "https://static1.tokenterminal.com/near/products/nearintents/logo.png"
+              }
+            }
+          ],
+          "sourceAmount": "1000000",
+          "destinationAmount": "714449",
+          "destinationAmountMin": "710876",
+          "estimatedTime": "42",
+          "priceImpact": "-28.561424569827942",
+          "networkFee": null,
+          "gasless": false,
+          "depositAddress": null,
+          "depositMemo": null,
+          "expiresAt": null,
+          "slippagePercentage": "0.5",
+          "transactionParams": null,
+          "requiresTokenAllowance": false,
+          "requiresFirmRoute": true
+        }
+      ]
+    }
+  )");
+
+  auto quote = gate3::ParseQuoteResponse(ParseJson(json));
+  ASSERT_TRUE(quote);
+  ASSERT_EQ(quote->routes.size(), 1u);
+
+  const auto& route = quote->routes[0];
+  EXPECT_EQ(route->id, "ni_da99b36c884a");
+  EXPECT_EQ(route->provider, mojom::SwapProvider::kNearIntents);
+  EXPECT_EQ(route->source_amount, "1000000");
+  EXPECT_EQ(route->destination_amount, "714449");
+  EXPECT_EQ(route->destination_amount_min, "710876");
+  ASSERT_TRUE(route->estimated_time.has_value());
+  EXPECT_EQ(*route->estimated_time, "42");
+  ASSERT_TRUE(route->price_impact.has_value());
+  EXPECT_EQ(*route->price_impact, "-28.561424569827942");
+  EXPECT_FALSE(route->deposit_address.has_value());
+  EXPECT_FALSE(route->deposit_memo.has_value());
+  EXPECT_FALSE(route->expires_at.has_value());
+  EXPECT_FALSE(route->requires_token_allowance);
+  EXPECT_TRUE(route->requires_firm_route);
+  EXPECT_FALSE(route->transaction_params);
+
+  // Verify steps
+  ASSERT_EQ(route->steps.size(), 1u);
+  const auto& step = route->steps[0];
+  EXPECT_EQ(step->source_amount, "1000000");
+  EXPECT_EQ(step->destination_amount, "714449");
+
+  // Verify source token
+  EXPECT_EQ(step->source_token->coin, "ETH");
+  EXPECT_EQ(step->source_token->chain_id, "0x1");
+  EXPECT_EQ(step->source_token->contract_address,
+            "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+  EXPECT_EQ(step->source_token->symbol, "USDC");
+  EXPECT_EQ(step->source_token->decimals, "6");
+  EXPECT_EQ(step->source_token->logo, "");
+
+  // Verify destination token
+  EXPECT_EQ(step->destination_token->coin, "SOL");
+  EXPECT_EQ(step->destination_token->chain_id, "0x65");
+  EXPECT_EQ(step->destination_token->contract_address,
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+  EXPECT_EQ(step->destination_token->symbol, "USDC");
+  EXPECT_EQ(step->destination_token->decimals, "6");
+  EXPECT_EQ(step->destination_token->logo, "");
+
+  // Verify tool
+  EXPECT_EQ(step->tool->name, "NEAR Intents");
+  EXPECT_EQ(
+      step->tool->logo,
+      "https://static1.tokenterminal.com/near/products/nearintents/logo.png");
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3QuoteResponseWithEvmTransaction) {
+  // Firm quote response with EVM transaction params
+  std::string json(R"(
+    {
+      "routes": [
+        {
+          "id": "ni_e6df68df401c",
+          "provider": "NEAR_INTENTS",
+          "steps": [
+            {
+              "sourceToken": {
+                "coin": "ETH",
+                "chainId": "0x1",
+                "contractAddress": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                "symbol": "USDC",
+                "decimals": "6",
+                "logo": null
+              },
+              "sourceAmount": "1000000",
+              "destinationToken": {
+                "coin": "SOL",
+                "chainId": "0x65",
+                "contractAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                "symbol": "USDC",
+                "decimals": "6",
+                "logo": null
+              },
+              "destinationAmount": "714488",
+              "tool": {
+                "name": "NEAR Intents",
+                "logo": "https://static1.tokenterminal.com/near/products/nearintents/logo.png"
+              }
+            }
+          ],
+          "sourceAmount": "1000000",
+          "destinationAmount": "714488",
+          "destinationAmountMin": "710915",
+          "estimatedTime": "42",
+          "priceImpact": "-28.551420568227304",
+          "networkFee": {
+            "amount": "21000000000000",
+            "decimals": "18",
+            "symbol": "ETH"
+          },
+          "gasless": false,
+          "depositAddress": "0x16a0FdeB69D821753440dFA092316F54eF95E967",
+          "depositMemo": null,
+          "expiresAt": "1767810375",
+          "slippagePercentage": "0.5",
+          "transactionParams": {
+            "evm": {
+              "chain": {
+                "coin": "ETH",
+                "chainId": "0x1"
+              },
+              "from": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+              "to": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+              "value": "0",
+              "data": "0xa9059cbb00000000000000000000000016a0fdeb69d821753440dfa092316f54ef95e96700000000000000000000000000000000000000000000000000000000000f4240",
+              "gasLimit": "0xfde8",
+              "gasPrice": null
+            },
+            "solana": null,
+            "bitcoin": null,
+            "cardano": null,
+            "zcash": null
+          },
+          "requiresTokenAllowance": false,
+          "requiresFirmRoute": true
+        }
+      ]
+    }
+  )");
+
+  auto quote = gate3::ParseQuoteResponse(ParseJson(json));
+  ASSERT_TRUE(quote);
+  ASSERT_EQ(quote->routes.size(), 1u);
+
+  const auto& route = quote->routes[0];
+  EXPECT_EQ(route->id, "ni_e6df68df401c");
+  EXPECT_EQ(route->provider, mojom::SwapProvider::kNearIntents);
+  EXPECT_EQ(route->source_amount, "1000000");
+  EXPECT_EQ(route->destination_amount, "714488");
+  EXPECT_EQ(route->destination_amount_min, "710915");
+  ASSERT_TRUE(route->deposit_address.has_value());
+  EXPECT_EQ(*route->deposit_address,
+            "0x16a0FdeB69D821753440dFA092316F54eF95E967");
+  ASSERT_TRUE(route->expires_at.has_value());
+  EXPECT_EQ(*route->expires_at, "1767810375");
+
+  // Verify network fee
+  ASSERT_TRUE(route->network_fee);
+  EXPECT_EQ(route->network_fee->amount, "21000000000000");
+  EXPECT_EQ(route->network_fee->decimals, 18);
+  EXPECT_EQ(route->network_fee->symbol, "ETH");
+
+  // Verify EVM transaction params
+  ASSERT_TRUE(route->transaction_params);
+  ASSERT_TRUE(route->transaction_params->is_evm_transaction_params());
+
+  const auto& evm_params =
+      route->transaction_params->get_evm_transaction_params();
+  EXPECT_EQ(evm_params->chain->coin, mojom::CoinType::ETH);
+  EXPECT_EQ(evm_params->chain->chain_id, "0x1");
+  EXPECT_EQ(evm_params->from, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045");
+  EXPECT_EQ(evm_params->to, "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
+  EXPECT_EQ(evm_params->value, "0");
+  EXPECT_EQ(evm_params->data,
+            "0xa9059cbb00000000000000000000000016a0fdeb69d821753440dfa092316f54"
+            "ef95e967"
+            "00000000000000000000000000000000000000000000000000000000000f4240");
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3QuoteResponseWithSolanaTransaction) {
+  // Firm quote response with Solana transaction params
+  std::string json(R"(
+    {
+      "routes": [
+        {
+          "id": "ni_sol_test",
+          "provider": "NEAR_INTENTS",
+          "steps": [
+            {
+              "sourceToken": {
+                "coin": "SOL",
+                "chainId": "0x65",
+                "contractAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                "symbol": "USDC",
+                "decimals": "6",
+                "logo": null
+              },
+              "sourceAmount": "1000000",
+              "destinationToken": {
+                "coin": "ETH",
+                "chainId": "0x1",
+                "contractAddress": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                "symbol": "USDC",
+                "decimals": "6",
+                "logo": null
+              },
+              "destinationAmount": "990000",
+              "tool": {
+                "name": "NEAR Intents",
+                "logo": "https://example.com/logo.png"
+              }
+            }
+          ],
+          "sourceAmount": "1000000",
+          "destinationAmount": "990000",
+          "destinationAmountMin": "980000",
+          "estimatedTime": "60",
+          "priceImpact": "-1.5",
+          "networkFee": {
+            "amount": "5000",
+            "decimals": "9",
+            "symbol": "SOL"
+          },
+          "gasless": false,
+          "depositAddress": "DepositAddress123",
+          "depositMemo": null,
+          "expiresAt": "1767810375",
+          "slippagePercentage": "0.5",
+          "transactionParams": {
+            "evm": null,
+            "solana": {
+              "chain": {
+                "coin": "SOL",
+                "chainId": "0x65"
+              },
+              "from": "S5ARSDD3ddZqqqqqb2EUE2h2F1XQHBk7bErRW1WPGe4",
+              "to": "DepositAddress123",
+              "lamports": "0",
+              "splTokenMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+              "splTokenAmount": "1000000",
+              "decimals": "6",
+              "versionedTransaction": null,
+              "computeUnitLimit": null,
+              "computeUnitPrice": null
+            },
+            "bitcoin": null,
+            "cardano": null,
+            "zcash": null
+          },
+          "requiresTokenAllowance": false,
+          "requiresFirmRoute": true
+        }
+      ]
+    }
+  )");
+
+  auto quote = gate3::ParseQuoteResponse(ParseJson(json));
+  ASSERT_TRUE(quote);
+  ASSERT_EQ(quote->routes.size(), 1u);
+
+  const auto& route = quote->routes[0];
+  EXPECT_EQ(route->id, "ni_sol_test");
+
+  // Verify network fee
+  ASSERT_TRUE(route->network_fee);
+  EXPECT_EQ(route->network_fee->amount, "5000");
+  EXPECT_EQ(route->network_fee->decimals, 9);
+  EXPECT_EQ(route->network_fee->symbol, "SOL");
+
+  // Verify Solana transaction params
+  ASSERT_TRUE(route->transaction_params);
+  ASSERT_TRUE(route->transaction_params->is_solana_transaction_params());
+
+  const auto& sol_params =
+      route->transaction_params->get_solana_transaction_params();
+  EXPECT_EQ(sol_params->chain->coin, mojom::CoinType::SOL);
+  EXPECT_EQ(sol_params->chain->chain_id, "0x65");
+  EXPECT_EQ(sol_params->from, "S5ARSDD3ddZqqqqqb2EUE2h2F1XQHBk7bErRW1WPGe4");
+  EXPECT_EQ(sol_params->to, "DepositAddress123");
+  EXPECT_EQ(sol_params->lamports, "0");
+  ASSERT_TRUE(sol_params->spl_token_mint.has_value());
+  EXPECT_EQ(*sol_params->spl_token_mint,
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+  ASSERT_TRUE(sol_params->spl_token_amount.has_value());
+  EXPECT_EQ(*sol_params->spl_token_amount, "1000000");
+  ASSERT_TRUE(sol_params->decimals.has_value());
+  EXPECT_EQ(*sol_params->decimals, "6");
+}
+
+TEST(SwapResponseParserUnitTest,
+     ParseGate3QuoteResponseWithBitcoinTransaction) {
+  // Firm quote response with Bitcoin transaction params
+  std::string json(R"(
+    {
+      "routes": [
+        {
+          "id": "ni_btc_test",
+          "provider": "NEAR_INTENTS",
+          "steps": [
+            {
+              "sourceToken": {
+                "coin": "BTC",
+                "chainId": "bitcoin_mainnet",
+                "contractAddress": null,
+                "symbol": "BTC",
+                "decimals": "8",
+                "logo": null
+              },
+              "sourceAmount": "100000",
+              "destinationToken": {
+                "coin": "ETH",
+                "chainId": "0x1",
+                "contractAddress": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                "symbol": "ETH",
+                "decimals": "18",
+                "logo": null
+              },
+              "destinationAmount": "50000000000000000",
+              "tool": {
+                "name": "NEAR Intents",
+                "logo": "https://example.com/logo.png"
+              }
+            }
+          ],
+          "sourceAmount": "100000",
+          "destinationAmount": "50000000000000000",
+          "destinationAmountMin": "49500000000000000",
+          "estimatedTime": "600",
+          "priceImpact": "-0.5",
+          "networkFee": null,
+          "gasless": false,
+          "depositAddress": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+          "depositMemo": null,
+          "expiresAt": "1767810375",
+          "slippagePercentage": "0.5",
+          "transactionParams": {
+            "evm": null,
+            "solana": null,
+            "bitcoin": {
+              "chain": {
+                "coin": "BTC",
+                "chainId": "bitcoin_mainnet"
+              },
+              "to": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+              "value": "100000",
+              "refundTo": "bc1sender123456789"
+            },
+            "cardano": null,
+            "zcash": null
+          },
+          "requiresTokenAllowance": false,
+          "requiresFirmRoute": true
+        }
+      ]
+    }
+  )");
+
+  auto quote = gate3::ParseQuoteResponse(ParseJson(json));
+  ASSERT_TRUE(quote);
+  ASSERT_EQ(quote->routes.size(), 1u);
+
+  const auto& route = quote->routes[0];
+  EXPECT_EQ(route->id, "ni_btc_test");
+
+  // Verify Bitcoin transaction params
+  ASSERT_TRUE(route->transaction_params);
+  ASSERT_TRUE(route->transaction_params->is_bitcoin_transaction_params());
+
+  const auto& btc_params =
+      route->transaction_params->get_bitcoin_transaction_params();
+  EXPECT_EQ(btc_params->chain->coin, mojom::CoinType::BTC);
+  EXPECT_EQ(btc_params->chain->chain_id, "bitcoin_mainnet");
+  EXPECT_EQ(btc_params->to, "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh");
+  EXPECT_EQ(btc_params->value, "100000");
+  EXPECT_EQ(btc_params->refund_to, "bc1sender123456789");
+}
+
+TEST(SwapResponseParserUnitTest,
+     ParseGate3QuoteResponseWithCardanoTransaction) {
+  // Firm quote response with Cardano transaction params
+  std::string json(R"(
+    {
+      "routes": [
+        {
+          "id": "ni_ada_test",
+          "provider": "NEAR_INTENTS",
+          "steps": [
+            {
+              "sourceToken": {
+                "coin": "ADA",
+                "chainId": "cardano_mainnet",
+                "contractAddress": null,
+                "symbol": "ADA",
+                "decimals": "6",
+                "logo": null
+              },
+              "sourceAmount": "1000000",
+              "destinationToken": {
+                "coin": "ETH",
+                "chainId": "0x1",
+                "contractAddress": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                "symbol": "ETH",
+                "decimals": "18",
+                "logo": null
+              },
+              "destinationAmount": "50000000000000000",
+              "tool": {
+                "name": "NEAR Intents",
+                "logo": "https://example.com/logo.png"
+              }
+            }
+          ],
+          "sourceAmount": "1000000",
+          "destinationAmount": "50000000000000000",
+          "destinationAmountMin": "49500000000000000",
+          "estimatedTime": "600",
+          "priceImpact": "-0.5",
+          "networkFee": null,
+          "gasless": false,
+          "depositAddress": "addr1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+          "depositMemo": null,
+          "expiresAt": "1767810375",
+          "slippagePercentage": "0.5",
+          "transactionParams": {
+            "evm": null,
+            "solana": null,
+            "bitcoin": null,
+            "cardano": {
+              "chain": {
+                "coin": "ADA",
+                "chainId": "cardano_mainnet"
+              },
+              "to": "addr1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+              "value": "1000000",
+              "refundTo": "addr1sender123456789"
+            },
+            "zcash": null
+          },
+          "requiresTokenAllowance": false,
+          "requiresFirmRoute": true
+        }
+      ]
+    }
+  )");
+
+  auto quote = gate3::ParseQuoteResponse(ParseJson(json));
+  ASSERT_TRUE(quote);
+  ASSERT_EQ(quote->routes.size(), 1u);
+
+  const auto& route = quote->routes[0];
+  EXPECT_EQ(route->id, "ni_ada_test");
+
+  // Verify Cardano transaction params
+  ASSERT_TRUE(route->transaction_params);
+  ASSERT_TRUE(route->transaction_params->is_cardano_transaction_params());
+
+  const auto& cardano_params =
+      route->transaction_params->get_cardano_transaction_params();
+  EXPECT_EQ(cardano_params->chain->coin, mojom::CoinType::ADA);
+  EXPECT_EQ(cardano_params->chain->chain_id, "cardano_mainnet");
+  EXPECT_EQ(cardano_params->to, "addr1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh");
+  EXPECT_EQ(cardano_params->value, "1000000");
+  EXPECT_EQ(cardano_params->refund_to, "addr1sender123456789");
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3QuoteResponseWithZCashTransaction) {
+  // Firm quote response with ZCash transaction params
+  std::string json(R"(
+    {
+      "routes": [
+        {
+          "id": "ni_zec_test",
+          "provider": "NEAR_INTENTS",
+          "steps": [
+            {
+              "sourceToken": {
+                "coin": "ZEC",
+                "chainId": "zcash_mainnet",
+                "contractAddress": null,
+                "symbol": "ZEC",
+                "decimals": "8",
+                "logo": null
+              },
+              "sourceAmount": "10000000",
+              "destinationToken": {
+                "coin": "ETH",
+                "chainId": "0x1",
+                "contractAddress": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                "symbol": "ETH",
+                "decimals": "18",
+                "logo": null
+              },
+              "destinationAmount": "50000000000000000",
+              "tool": {
+                "name": "NEAR Intents",
+                "logo": "https://example.com/logo.png"
+              }
+            }
+          ],
+          "sourceAmount": "10000000",
+          "destinationAmount": "50000000000000000",
+          "destinationAmountMin": "49500000000000000",
+          "estimatedTime": "600",
+          "priceImpact": "-0.5",
+          "networkFee": null,
+          "gasless": false,
+          "depositAddress": "t1dJj1rGjG7GjG7GjG7GjG7GjG7GjG7GjG7G",
+          "depositMemo": null,
+          "expiresAt": "1767810375",
+          "slippagePercentage": "0.5",
+          "transactionParams": {
+            "evm": null,
+            "solana": null,
+            "bitcoin": null,
+            "cardano": null,
+            "zcash": {
+              "chain": {
+                "coin": "ZEC",
+                "chainId": "zcash_mainnet"
+              },
+              "to": "t1dJj1rGjG7GjG7GjG7GjG7GjG7GjG7GjG7G",
+              "value": "10000000",
+              "refundTo": "t1sender123456789"
+            }
+          },
+          "requiresTokenAllowance": false,
+          "requiresFirmRoute": true
+        }
+      ]
+    }
+  )");
+
+  auto quote = gate3::ParseQuoteResponse(ParseJson(json));
+  ASSERT_TRUE(quote);
+  ASSERT_EQ(quote->routes.size(), 1u);
+
+  const auto& route = quote->routes[0];
+  EXPECT_EQ(route->id, "ni_zec_test");
+
+  // Verify ZCash transaction params
+  ASSERT_TRUE(route->transaction_params);
+  ASSERT_TRUE(route->transaction_params->is_zcash_transaction_params());
+
+  const auto& zcash_params =
+      route->transaction_params->get_zcash_transaction_params();
+  EXPECT_EQ(zcash_params->chain->coin, mojom::CoinType::ZEC);
+  EXPECT_EQ(zcash_params->chain->chain_id, "zcash_mainnet");
+  EXPECT_EQ(zcash_params->to, "t1dJj1rGjG7GjG7GjG7GjG7GjG7GjG7GjG7G");
+  EXPECT_EQ(zcash_params->value, "10000000");
+  EXPECT_EQ(zcash_params->refund_to, "t1sender123456789");
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3ErrorResponse) {
+  std::string json(R"(
+    {
+      "message": "Provider NEAR_INTENTS does not support this swap",
+      "kind": "UNKNOWN"
+    }
+  )");
+
+  auto error = gate3::ParseErrorResponse(ParseJson(json));
+  ASSERT_TRUE(error);
+  EXPECT_EQ(error->message, "Provider NEAR_INTENTS does not support this swap");
+  EXPECT_EQ(error->kind, mojom::Gate3SwapErrorKind::kUnknown);
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3ErrorResponseInsufficientLiquidity) {
+  std::string json(R"(
+    {
+      "message": "No liquidity available for this swap",
+      "kind": "INSUFFICIENT_LIQUIDITY"
+    }
+  )");
+
+  auto error = gate3::ParseErrorResponse(ParseJson(json));
+  ASSERT_TRUE(error);
+  EXPECT_EQ(error->message, "No liquidity available for this swap");
+  EXPECT_EQ(error->kind, mojom::Gate3SwapErrorKind::kInsufficientLiquidity);
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3QuoteResponseInvalidJson) {
+  // Empty routes
+  std::string json_empty_routes(R"({"routes": []})");
+  auto quote = gate3::ParseQuoteResponse(ParseJson(json_empty_routes));
+  EXPECT_FALSE(quote);
+
+  // Missing routes field
+  std::string json_no_routes(R"({})");
+  quote = gate3::ParseQuoteResponse(ParseJson(json_no_routes));
+  EXPECT_FALSE(quote);
+
+  // Invalid provider
+  std::string json_invalid_provider(R"(
+    {
+      "routes": [
+        {
+          "id": "test",
+          "provider": "INVALID_PROVIDER",
+          "steps": [],
+          "sourceAmount": "1000000",
+          "destinationAmount": "714449",
+          "destinationAmountMin": "710876",
+          "requiresTokenAllowance": false,
+          "requiresFirmRoute": true
+        }
+      ]
+    }
+  )");
+  quote = gate3::ParseQuoteResponse(ParseJson(json_invalid_provider));
+  EXPECT_FALSE(quote);
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3StatusResponse) {
+  struct TestCase {
+    std::string status_string;
+    std::string internal_status;
+    std::string explorer_url;
+    mojom::Gate3SwapStatusCode expected_code;
+  };
+  std::vector<TestCase> cases = {
+      {"PENDING", "awaiting_deposit", "", mojom::Gate3SwapStatusCode::kPending},
+      {"PROCESSING", "swap_in_progress", "https://explorer.example.com/tx/123",
+       mojom::Gate3SwapStatusCode::kProcessing},
+      {"SUCCESS", "completed", "https://solscan.io/tx/abc123",
+       mojom::Gate3SwapStatusCode::kSuccess},
+      {"FAILED", "swap_failed", "", mojom::Gate3SwapStatusCode::kFailed},
+      {"REFUNDED", "refund_complete", "https://etherscan.io/tx/refund123",
+       mojom::Gate3SwapStatusCode::kRefunded},
+  };
+
+  for (const auto& tc : cases) {
+    std::string json =
+        absl::StrFormat(R"({
+      "status": "%s",
+      "internalStatus": "%s",
+      "explorerUrl": "%s"
+    })",
+                        tc.status_string, tc.internal_status, tc.explorer_url);
+
+    auto status = gate3::ParseStatusResponse(ParseJson(json));
+    ASSERT_TRUE(status) << "Failed to parse status: " << tc.status_string;
+    EXPECT_EQ(status->status, tc.expected_code);
+    EXPECT_EQ(status->internal_status, tc.internal_status);
+    EXPECT_EQ(status->explorer_url, tc.explorer_url);
+  }
+}
+
+TEST(SwapResponseParserUnitTest, ParseGate3StatusResponseInvalidJson) {
+  // Missing status field
+  std::string json_no_status = R"({
+    "internalStatus": "test",
+    "explorerUrl": ""
+  })";
+  EXPECT_FALSE(gate3::ParseStatusResponse(ParseJson(json_no_status)));
+
+  // Empty JSON
+  EXPECT_FALSE(gate3::ParseStatusResponse(ParseJson("{}")));
+
+  // Invalid status value
+  std::string json_invalid_status = R"({
+    "status": "INVALID_STATUS",
+    "internalStatus": "test",
+    "explorerUrl": ""
+  })";
+  auto status = gate3::ParseStatusResponse(ParseJson(json_invalid_status));
+  EXPECT_FALSE(status);
+}
+
+TEST(SwapResponseParserUnitTest,
+     ParseGate3StatusResponseExplorerUrlValidation) {
+  auto make_json = [](const std::string& url) {
+    return absl::StrFormat(R"({
+      "status": "SUCCESS",
+      "internalStatus": "completed",
+      "explorerUrl": "%s"
+    })",
+                           url);
+  };
+
+  // Valid HTTPS URL is accepted.
+  {
+    auto status = gate3::ParseStatusResponse(
+        ParseJson(make_json("https://etherscan.io/tx/0x123")));
+    ASSERT_TRUE(status);
+    EXPECT_EQ(status->explorer_url, "https://etherscan.io/tx/0x123");
+  }
+
+  // javascript: URI is rejected.
+  {
+    auto status =
+        gate3::ParseStatusResponse(ParseJson(make_json("javascript:alert(1)")));
+    ASSERT_TRUE(status);
+    EXPECT_TRUE(status->explorer_url.empty());
+  }
+
+  // data: URI is rejected.
+  {
+    auto status = gate3::ParseStatusResponse(
+        ParseJson(make_json("data:text/html,<script>alert(1)</script>")));
+    ASSERT_TRUE(status);
+    EXPECT_TRUE(status->explorer_url.empty());
+  }
+
+  // HTTP URL is rejected (must be HTTPS).
+  {
+    auto status = gate3::ParseStatusResponse(
+        ParseJson(make_json("http://etherscan.io/tx/0x123")));
+    ASSERT_TRUE(status);
+    EXPECT_TRUE(status->explorer_url.empty());
+  }
+
+  // Invalid URL is rejected.
+  {
+    auto status = gate3::ParseStatusResponse(ParseJson(make_json("not-a-url")));
+    ASSERT_TRUE(status);
+    EXPECT_TRUE(status->explorer_url.empty());
+  }
+}
+
+}  // namespace brave_wallet

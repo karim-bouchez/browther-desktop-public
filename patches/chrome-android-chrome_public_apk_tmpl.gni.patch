@@ -1,0 +1,28 @@
+diff --git a/chrome/android/chrome_public_apk_tmpl.gni b/chrome/android/chrome_public_apk_tmpl.gni
+index 6bd4fc5504337705757f4f1e8683e5bcb8d4043a..ac7a59523f4312b4ba17cfaca77e0522bb7a2c82 100644
+--- a/chrome/android/chrome_public_apk_tmpl.gni
++++ b/chrome/android/chrome_public_apk_tmpl.gni
+@@ -291,6 +291,7 @@ template("chrome_common_apk_or_module_tmpl") {
+       "*ic_file_download_white*",  # Bottom edge seems misaligned.
+       "*ic_lock.*",  # Bottom edge seems misaligned.
+     ]
++    resource_exclusion_exceptions += brave_resources_exclusion_exceptions
+ 
+     # Most of these, with the exception of resource_exclusion_exceptions,
+     # are currently duplicated in system_webview_apk_tmpl.gni.
+@@ -315,6 +316,7 @@ template("chrome_common_apk_or_module_tmpl") {
+ 
+       proguard_enabled = true
+       proguard_configs = [ "//chrome/android/proguard/main.flags" ]
++      proguard_configs += [ "//brave/android/java/proguard.flags" ]
+       if (_is_test) {
+         proguard_configs += [ "//chrome/android/proguard/apk_for_test.flags" ]
+       }
+@@ -666,6 +668,7 @@ template("chrome_common_apk_or_module_tmpl") {
+                                  "version_code",
+                                  "version_name",
+                                ])
++    _wireguard_target = "//brave/third_party/android_deps:com_wireguard_android_J__unpack_aar" deps += [ _wireguard_target] _libwireguard_dir = get_label_info("//brave/third_party/android_deps:com_wireguard_android($default_toolchain)","target_out_dir") + "/com_wireguard_android_java/jni" loadable_modules +=[ "$_libwireguard_dir/$android_app_abi/libwg-go.so" ]
+   }
+ }
+ 

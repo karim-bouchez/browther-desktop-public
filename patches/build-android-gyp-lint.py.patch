@@ -1,0 +1,11 @@
+diff --git a/build/android/gyp/lint.py b/build/android/gyp/lint.py
+index a9120ee83475b5fb9ca60934d0df2319637b15b5..5a7d00ac44d405578b45d0878767737a68fa2a37 100755
+--- a/build/android/gyp/lint.py
++++ b/build/android/gyp/lint.py
+@@ -463,5 +463,6 @@ def main():
+   server_utils.MaybeTouch(args.stamp)
+ 
+ 
++from brave_chromium_utils import inline_chromium_src_override; inline_chromium_src_override(globals(), locals())
+ if __name__ == '__main__':
+   sys.exit(main())

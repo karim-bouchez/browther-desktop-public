@@ -1,0 +1,20 @@
+diff --git a/base/BUILD.gn b/base/BUILD.gn
+index d0317b2920ca8b545d3294d6121aa0085969ab0b..d6fcb16256402dbb67ea99df82296a001e4d38b9 100644
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -4818,6 +4818,7 @@ if (is_android) {
+       "android/java/src/org/chromium/base/UserDataHost.java",
+       "android/java/src/org/chromium/base/ValueChangedCallback.java",
+     ]
++    sources += brave_java_base_sources
+ 
+     resources_package = "org.chromium.base"
+ 
+@@ -5474,6 +5475,7 @@ if (is_android) {
+       "android/java/src/org/chromium/base/shared_preferences/SharedPreferencesManager.java",
+       "android/java/src/org/chromium/base/shared_preferences/StrictPreferenceKeyChecker.java",
+     ]
++    sources += brave_base_shared_preferences_java_sources
+   }
+ 
+   android_library("flagged_apis_java") {

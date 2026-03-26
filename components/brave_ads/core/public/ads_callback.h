@@ -1,0 +1,66 @@
+/* Copyright (c) 2021 The Brave Authors. All rights reserved.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+#ifndef BRAVE_COMPONENTS_BRAVE_ADS_CORE_PUBLIC_ADS_CALLBACK_H_
+#define BRAVE_COMPONENTS_BRAVE_ADS_CORE_PUBLIC_ADS_CALLBACK_H_
+
+#include <optional>
+
+#include "base/functional/callback.h"
+#include "base/types/optional_ref.h"
+#include "base/values.h"
+#include "brave/components/brave_ads/buildflags/buildflags.h"
+#include "brave/components/brave_ads/core/mojom/brave_ads.mojom-forward.h"
+#include "brave/components/brave_ads/core/public/ad_units/new_tab_page_ad/new_tab_page_ad_info.h"
+#include "brave/components/brave_ads/core/public/ad_units/notification_ad/notification_ad_info.h"
+#include "brave/components/brave_ads/core/public/history/ad_history_item_info.h"
+
+static_assert(BUILDFLAG(ENABLE_BRAVE_ADS));
+
+namespace brave_ads {
+
+using ResultCallback = base::OnceCallback<void(bool success)>;
+
+using InitializeCallback = base::OnceCallback<void(bool success)>;
+using ShutdownCallback = base::OnceCallback<void(bool success)>;
+
+using GetInternalsCallback =
+    base::OnceCallback<void(std::optional<base::DictValue> internals)>;
+
+using GetDiagnosticsCallback =
+    base::OnceCallback<void(std::optional<base::ListValue> diagnostics)>;
+
+using GetStatementOfAccountsCallback =
+    base::OnceCallback<void(mojom::StatementInfoPtr mojom_statement)>;
+
+using ParseAndSaveNewTabPageAdsCallback =
+    base::OnceCallback<void(bool success)>;
+using MaybeServeNewTabPageAdCallback =
+    base::OnceCallback<void(base::optional_ref<const NewTabPageAdInfo> ad)>;
+
+using MaybeGetNotificationAdCallback =
+    base::OnceCallback<void(base::optional_ref<const NotificationAdInfo> ad)>;
+
+using MaybeGetSearchResultAdCallback = base::OnceCallback<void(
+    mojom::CreativeSearchResultAdInfoPtr mojom_creative_ad)>;
+
+using TriggerAdEventCallback = base::OnceCallback<void(bool success)>;
+
+using PurgeOrphanedAdEventsForTypeCallback =
+    base::OnceCallback<void(bool success)>;
+
+using GetAdHistoryCallback =
+    base::OnceCallback<void(std::optional<AdHistoryList> ad_history)>;
+
+// TODO(https://github.com/brave/brave-browser/issues/24595): Transition
+// GetAdHistory from base::Value to a mojom data structure.
+using GetAdHistoryForUICallback =
+    base::OnceCallback<void(std::optional<base::ListValue> ad_history)>;
+
+using ToggleReactionCallback = base::OnceCallback<void(bool success)>;
+
+}  // namespace brave_ads
+
+#endif  // BRAVE_COMPONENTS_BRAVE_ADS_CORE_PUBLIC_ADS_CALLBACK_H_

@@ -1,0 +1,12 @@
+diff --git a/ui/views/view.h b/ui/views/view.h
+index 6e3002f54434f4b09b91e7892fc5e0bf35f8ad9a..d5c715ad03bf309f91d5113b27a36c62530ff0b5 100644
+--- a/ui/views/view.h
++++ b/ui/views/view.h
+@@ -327,6 +327,7 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
+     FRIEND_TEST_ALL_PREFIXES(WebViewUnitTest, CrashedOverlayView);
+ 
+     OwnedByClientPassKey() = default;
++    BRAVE_VIEW_OWNED_BY_CLIENT_PASS_KEY
+   };
+ 
+   using PassKey = base::NonCopyablePassKey<View>;

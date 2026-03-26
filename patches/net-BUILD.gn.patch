@@ -1,0 +1,12 @@
+diff --git a/net/BUILD.gn b/net/BUILD.gn
+index 6ea3f02025d04480826a2ed542dbbb39eeb65369..d9f2697e0a6fd3658f63e9d3c04fe005a8155d99 100644
+--- a/net/BUILD.gn
++++ b/net/BUILD.gn
+@@ -1273,6 +1273,7 @@ component("net") {
+       "reporting/reporting_uploader.h",
+     ]
+   }
++  sources += brave_net_sources import("//brave/components/brave_wallet/sources.gni") deps += brave_net_deps
+ 
+   if (enable_device_bound_sessions) {
+     sources += [

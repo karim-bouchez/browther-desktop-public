@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/views/extensions/extensions_menu_delegate_desktop.cc b/chrome/browser/ui/views/extensions/extensions_menu_delegate_desktop.cc
+index b9a8d967d1d56c4aff8edc00fa7ca6e9774e1d1b..da76645e5edb10d6857c9730d85b4e740d8ed3a8 100644
+--- a/chrome/browser/ui/views/extensions/extensions_menu_delegate_desktop.cc
++++ b/chrome/browser/ui/views/extensions/extensions_menu_delegate_desktop.cc
+@@ -359,6 +359,7 @@ void ExtensionsMenuDelegateDesktop::OnUserPermissionsSettingsChanged() {
+ }
+ 
+ void ExtensionsMenuDelegateDesktop::OpenMainPage() {
++  BRAVE_EXTENSIONS_MENU_VIEW_PLATFORM_DELEGATE_VIEWS_OPEN_MAIN_PAGE
+   auto main_page = std::make_unique<ExtensionsMenuMainPageView>(browser_, this);
+   UpdateMainPage(main_page.get());
+   PopulateMainPage(main_page.get());

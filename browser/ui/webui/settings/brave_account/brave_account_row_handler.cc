@@ -1,0 +1,71 @@
+/* Copyright (c) 2025 The Brave Authors. All rights reserved.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+#include "brave/browser/ui/webui/settings/brave_account/brave_account_row_handler.h"
+
+#include <string>
+#include <utility>
+
+#include "base/check.h"
+#include "base/check_deref.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "brave/browser/ui/webui/brave_account/brave_account_ui_desktop.h"
+#include "brave/components/brave_account/pref_names.h"
+#include "chrome/browser/profiles/profile.h"
+#include "components/prefs/pref_service.h"
+
+namespace brave_account {
+
+BraveAccountRowHandler::BraveAccountRowHandler(
+    mojo::PendingReceiver<mojom::RowHandler> row_handler,
+    mojo::PendingRemote<mojom::RowClient> row_client,
+    content::WebUI* web_ui)
+    : row_handler_(this, std::move(row_handler)),
+      row_client_(std::move(row_client)),
+      web_ui_(&CHECK_DEREF(web_ui)),
+      pref_service_(CHECK_DEREF(Profile::FromWebUI(web_ui_)).GetPrefs()) {
+  CHECK(pref_service_);
+  pref_change_registrar_.Init(pref_service_);
+  pref_change_registrar_.AddMultiple(
+      {prefs::kBraveAccountVerificationToken,
+       prefs::kBraveAccountAuthenticationToken,
+       prefs::kBraveAccountEmailAddress},
+      base::BindRepeating(&BraveAccountRowHandler::OnPrefChanged,
+                          base::Unretained(this)));
+}
+
+BraveAccountRowHandler::~BraveAccountRowHandler() = default;
+
+void BraveAccountRowHandler::GetAccountState(GetAccountStateCallback callback) {
+  std::move(callback).Run(GetAccountState());
+}
+
+void BraveAccountRowHandler::OpenDialog(
+    const std::string& initiating_service_name) {
+  ShowBraveAccountDialog(web_ui_, initiating_service_name);
+}
+
+mojom::AccountStatePtr BraveAccountRowHandler::GetAccountState() const {
+  if (!pref_service_->GetString(prefs::kBraveAccountAuthenticationToken)
+           .empty()) {
+    return mojom::AccountState::NewLoggedIn(mojom::LoggedInState::New(
+        pref_service_->GetString(prefs::kBraveAccountEmailAddress)));
+  }
+
+  if (!pref_service_->GetString(prefs::kBraveAccountVerificationToken)
+           .empty()) {
+    return mojom::AccountState::NewVerification(
+        mojom::VerificationState::New());
+  }
+
+  return mojom::AccountState::NewLoggedOut(mojom::LoggedOutState::New());
+}
+
+void BraveAccountRowHandler::OnPrefChanged() {
+  row_client_->UpdateState(GetAccountState());
+}
+
+}  // namespace brave_account
