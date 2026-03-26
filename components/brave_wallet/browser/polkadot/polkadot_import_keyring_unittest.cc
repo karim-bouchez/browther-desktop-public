@@ -88,7 +88,7 @@ TEST(PolkadotImportKeyringTest, AddAccountAndGetAddress) {
 
 TEST(PolkadotImportKeyringTest, AddAccountFails) {
   auto hd_keyring = MakePolkadotKeyring(mojom::KeyringId::kPolkadotMainnet);
-  hd_keyring.AddNewHDAccount(0);
+  ASSERT_TRUE(hd_keyring.AddNewHDAccount(0));
   auto pkcs8 = hd_keyring.GetPkcs8KeyForTesting(0);
 
   PolkadotImportKeyring keyring(mojom::KeyringId::kPolkadotImport);
@@ -101,7 +101,7 @@ TEST(PolkadotImportKeyringTest, AddAccountFails) {
 
 TEST(PolkadotImportKeyringTest, RemoveAccount) {
   auto hd_keyring = MakePolkadotKeyring(mojom::KeyringId::kPolkadotMainnet);
-  hd_keyring.AddNewHDAccount(0);
+  ASSERT_TRUE(hd_keyring.AddNewHDAccount(0));
   auto pkcs8 = hd_keyring.GetPkcs8KeyForTesting(0);
 
   PolkadotImportKeyring keyring(mojom::KeyringId::kPolkadotImport);
@@ -116,7 +116,7 @@ TEST(PolkadotImportKeyringTest, RemoveAccount) {
 
 TEST(PolkadotImportKeyringTest, GetPublicKey) {
   auto hd_keyring = MakePolkadotKeyring(mojom::KeyringId::kPolkadotMainnet);
-  hd_keyring.AddNewHDAccount(0);
+  ASSERT_TRUE(hd_keyring.AddNewHDAccount(0));
   auto pkcs8 = hd_keyring.GetPkcs8KeyForTesting(0);
 
   PolkadotImportKeyring import_keyring(mojom::KeyringId::kPolkadotImport);
@@ -132,7 +132,7 @@ TEST(PolkadotImportKeyringTest, GetPublicKey) {
 
 TEST(PolkadotImportKeyringTest, SignMessage) {
   auto hd_keyring = MakePolkadotKeyring(mojom::KeyringId::kPolkadotMainnet);
-  hd_keyring.AddNewHDAccount(0);
+  ASSERT_TRUE(hd_keyring.AddNewHDAccount(0));
   auto pkcs8 = hd_keyring.GetPkcs8KeyForTesting(0);
 
   PolkadotImportKeyring import_keyring(mojom::KeyringId::kPolkadotImport);
@@ -148,7 +148,7 @@ TEST(PolkadotImportKeyringTest, SignMessage) {
 
 TEST(PolkadotImportKeyringTest, EncodePrivateKeyForExportRoundtrip) {
   auto hd_keyring = MakePolkadotKeyring(mojom::KeyringId::kPolkadotMainnet);
-  hd_keyring.AddNewHDAccount(0);
+  ASSERT_TRUE(hd_keyring.AddNewHDAccount(0));
   auto pkcs8 = hd_keyring.GetPkcs8KeyForTesting(0);
 
   PolkadotImportKeyring import_keyring(mojom::KeyringId::kPolkadotImport);
