@@ -35,6 +35,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.components.browser_ui.settings.search.BaseSearchIndexProvider;
+import org.chromium.components.search_engines.BraveTemplateUrlService;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.widget.Toast;
@@ -229,23 +230,29 @@ public class AddCustomSearchEnginePreferenceFragment extends ChromeBaseSettingsF
 
                         TemplateUrlService templateUrlService =
                                 TemplateUrlServiceFactory.getForProfile(getProfile());
+                        if (!(templateUrlService instanceof BraveTemplateUrlService)) {
+                            return;
+                        }
+
+                        BraveTemplateUrlService braveTemplateUrlService =
+                                (BraveTemplateUrlService) templateUrlService;
 
                         if (mIsEditMode && mSearchEngineKeywordForEdit != null) {
                             handleSearchEngineUpdate(
-                                    templateUrlService,
+                                    braveTemplateUrlService,
                                     mSearchEngineKeywordForEdit,
                                     title,
                                     keyword,
                                     url);
                         } else if (!mIsEditMode) {
-                            handleSearchEngineAdd(templateUrlService, title, keyword, url);
+                            handleSearchEngineAdd(braveTemplateUrlService, title, keyword, url);
                         }
                     }
                 });
     }
 
     private void handleSearchEngineUpdate(
-            TemplateUrlService templateUrlService,
+            BraveTemplateUrlService templateUrlService,
             String searchEngineKeyword,
             String title,
             String keyword,
@@ -253,10 +260,9 @@ public class AddCustomSearchEnginePreferenceFragment extends ChromeBaseSettingsF
         if (mCustomSearchEnginesManager == null) {
             return;
         }
-        // TODO(https://github.com/brave/brave-browser/issues/21837): implement the actual update of
-        // the custom search engine in template url
-        // service.
-        boolean isUpdated = templateUrlService != null;
+        String queryReplacedUrl = url.replace("%s", "{searchTerms}");
+        boolean isUpdated =
+                templateUrlService.update(searchEngineKeyword, title, keyword, queryReplacedUrl);
         if (isUpdated) {
             mCustomSearchEnginesManager.updateCustomSearchEngine(
                     searchEngineKeyword, title, keyword, url);
@@ -271,7 +277,7 @@ public class AddCustomSearchEnginePreferenceFragment extends ChromeBaseSettingsF
     }
 
     private void handleSearchEngineAdd(
-            TemplateUrlService templateUrlService, String title, String keyword, String url) {
+            BraveTemplateUrlService templateUrlService, String title, String keyword, String url) {
         if (mCustomSearchEnginesManager == null) {
             return;
         }
@@ -284,10 +290,8 @@ public class AddCustomSearchEnginePreferenceFragment extends ChromeBaseSettingsF
             return;
         }
 
-        // TODO(https://github.com/brave/brave-browser/issues/21837): implement the actual addition
-        // of the custom search engine to template
-        // url service.
-        boolean isAdded = templateUrlService != null && !url.isEmpty() && !title.isEmpty();
+        String queryReplacedUrl = url.replace("%s", "{searchTerms}");
+        boolean isAdded = templateUrlService.add(title, keyword, queryReplacedUrl);
         if (isAdded) {
             mCustomSearchEnginesManager.addCustomSearchEngine(keyword);
             handleBackPressed();
