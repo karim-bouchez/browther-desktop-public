@@ -1630,4 +1630,6 @@ provideStrings({
   braveWalletPageNotFoundDescription:
     'It may have moved to a different place or the URL may contain a typo.',
   braveWalletGoToPortfolio: 'Go to Portfolio',
+  braveWalletProcessTransactionErrorMessage:
+    'Not enough $1 left to cover the network fee. Try a smaller amount.',
 })
