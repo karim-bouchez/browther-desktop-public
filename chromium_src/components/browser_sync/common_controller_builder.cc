@@ -6,6 +6,10 @@
 #include "brave/components/history/core/browser/sync/brave_history_data_type_controller.h"
 #include "brave/components/history/core/browser/sync/brave_history_delete_directives_data_type_controller.h"
 
+// AI Chat sync controller injection. The macro is placed in the upstream
+// Build() method right before `return controllers;`.
+#define BRAVE_BUILD_SYNC_CONTROLLERS  // No-op for now; bridge wiring TBD.
+
 #define HistoryDeleteDirectivesDataTypeController \
   BraveHistoryDeleteDirectivesDataTypeController
 
@@ -15,3 +19,4 @@
 
 #undef HistoryDataTypeController
 #undef HistoryDeleteDirectivesDataTypeController
+#undef BRAVE_BUILD_SYNC_CONTROLLERS

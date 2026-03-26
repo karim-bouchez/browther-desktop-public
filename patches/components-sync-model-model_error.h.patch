@@ -1,0 +1,14 @@
+diff --git a/components/sync/model/model_error.h b/components/sync/model/model_error.h
+index be8c65925d85dc4382584eaff122dc94f322ed27..a0c09446f516f31e4dc2eae5a9af37b261e7d20a 100644
+--- a/components/sync/model/model_error.h
++++ b/components/sync/model/model_error.h
+@@ -200,7 +200,8 @@ class ModelError {
+     kAutofillValuableMetadataFailedToLoadMetadata = 190,
+     kDataTypeControllerInFailedState = 191,
+     kBookmarksLocalCountExceededLimitAfterInitialMerge = 192,
+-    kMaxValue = kBookmarksLocalCountExceededLimitAfterInitialMerge,
++    kAIChatFailedToLoadMetadata = 193,
++    kMaxValue = kAIChatFailedToLoadMetadata,
+   };
+   // LINT.ThenChange(//tools/metrics/histograms/metadata/sync/enums.xml:SyncModelError)
+ 
