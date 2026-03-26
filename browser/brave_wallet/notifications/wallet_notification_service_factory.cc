@@ -28,7 +28,7 @@ WalletNotificationServiceFactory::WalletNotificationServiceFactory()
           "WalletNotificationService",
           BrowserContextDependencyManager::GetInstance()) {
   DependsOn(NotificationDisplayServiceFactory::GetInstance());
-  DependsOn(brave_wallet::BraveWalletServiceFactory::GetInstance());
+  DependsOn(BraveWalletServiceFactory::GetInstance());
 }
 
 WalletNotificationServiceFactory::~WalletNotificationServiceFactory() = default;
@@ -44,11 +44,14 @@ WalletNotificationServiceFactory::BuildServiceInstanceForBrowserContext(
 WalletNotificationService*
 WalletNotificationServiceFactory::GetServiceForContext(
     content::BrowserContext* context) {
-  if (!IsAllowedForContext(context)) {
-    return nullptr;
-  }
   return static_cast<WalletNotificationService*>(
       GetInstance()->GetServiceForBrowserContext(context, true));
+}
+
+content::BrowserContext*
+WalletNotificationServiceFactory::GetBrowserContextToUse(
+    content::BrowserContext* context) const {
+  return GetBrowserContextToUseForBraveWallet(context);
 }
 
 }  // namespace brave_wallet

@@ -35,4 +35,12 @@ bool IsAllowedForContext(content::BrowserContext* context) {
   return false;
 }
 
+content::BrowserContext* GetBrowserContextToUseForBraveWallet(
+    content::BrowserContext* context) {
+  if (!IsAllowedForContext(context)) {
+    return nullptr;
+  }
+  return context;
+}
+
 }  // namespace brave_wallet

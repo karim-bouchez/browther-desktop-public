@@ -18,6 +18,11 @@ namespace brave_wallet {
 
 bool IsAllowedForContext(content::BrowserContext* context);
 
+// Common implementation of `GetBrowserContextToUse` methods for wallet related
+// keyed services.
+content::BrowserContext* GetBrowserContextToUseForBraveWallet(
+    content::BrowserContext* context);
+
 }  // namespace brave_wallet
 
 #endif  // BRAVE_BROWSER_BRAVE_WALLET_BRAVE_WALLET_CONTEXT_UTILS_H_
