@@ -12,8 +12,11 @@
 
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/time/time.h"
 #include "brave/components/ai_chat/core/common/mojom/ai_chat.mojom.h"
 #include "brave/components/ai_chat/core/common/mojom/common.mojom.h"
+#include "brave/components/ai_chat/core/common/proto_conversion.h"
+#include "brave/components/ai_chat/core/proto/store.pb.h"
 #include "brave/components/sync/protocol/ai_chat_specifics.pb.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
@@ -44,18 +47,33 @@ void ConvertEntryToProto(const mojom::ConversationTurn& entry,
 
   // Convert events
   if (entry.events) {
+    int order = 0;
     for (const auto& event : *entry.events) {
       auto* event_proto = proto->add_events();
+      event_proto->set_event_order(order++);
       if (event->is_completion_event()) {
         event_proto->set_completion_text(
             event->get_completion_event()->completion);
       } else if (event->is_search_queries_event()) {
         const auto& queries = event->get_search_queries_event()->search_queries;
         event_proto->set_search_queries(base::JoinString(queries, "|||"));
+      } else if (event->is_sources_event()) {
+        store::WebSourcesEventProto store_proto;
+        SerializeWebSourcesEvent(event->get_sources_event(), &store_proto);
+        event_proto->set_web_sources_serialized(
+            store_proto.SerializeAsString());
+      } else if (event->is_inline_search_event()) {
+        store::InlineSearchEventProto store_proto;
+        SerializeInlineSearchEvent(event->get_inline_search_event(),
+                                   &store_proto);
+        event_proto->set_inline_search_serialized(
+            store_proto.SerializeAsString());
+      } else if (event->is_tool_use_event()) {
+        store::ToolUseEventProto store_proto;
+        if (SerializeToolUseEvent(event->get_tool_use_event(), &store_proto)) {
+          event_proto->set_tool_use_serialized(store_proto.SerializeAsString());
+        }
       }
-      // web_sources, inline_search, and tool_use events use serialized bytes
-      // which would need the raw bytes from the database. For now, these are
-      // handled at the database layer when reading for sync.
     }
   }
 
@@ -126,6 +144,114 @@ std::string GetClientTagFromSpecifics(
 std::string GetStorageKeyFromEntitySpecifics(
     const sync_pb::EntitySpecifics& specifics) {
   return specifics.ai_chat_conversation().uuid();
+}
+
+mojom::ConversationPtr SpecificsToConversation(
+    const sync_pb::AIChatConversationSpecifics& specifics) {
+  auto conversation = mojom::Conversation::New();
+  conversation->uuid = specifics.uuid();
+  conversation->title = specifics.title();
+  if (specifics.has_model_key()) {
+    conversation->model_key = specifics.model_key();
+  }
+  conversation->total_tokens = specifics.total_tokens();
+  conversation->trimmed_tokens = specifics.trimmed_tokens();
+
+  for (const auto& content_proto : specifics.associated_content()) {
+    auto content = mojom::AssociatedContent::New();
+    content->uuid = content_proto.uuid();
+    content->title = content_proto.title();
+    if (content_proto.has_url()) {
+      content->url = GURL(content_proto.url());
+    }
+    content->content_type =
+        static_cast<mojom::ContentType>(content_proto.content_type());
+    content->content_used_percentage = content_proto.content_used_percentage();
+    if (content_proto.has_conversation_entry_uuid()) {
+      content->conversation_turn_uuid = content_proto.conversation_entry_uuid();
+    }
+    conversation->associated_content.push_back(std::move(content));
+  }
+
+  return conversation;
+}
+
+mojom::ConversationArchivePtr SpecificsToArchive(
+    const sync_pb::AIChatConversationSpecifics& specifics) {
+  auto archive = mojom::ConversationArchive::New();
+
+  for (const auto& entry_proto : specifics.entries()) {
+    auto entry = mojom::ConversationTurn::New();
+    if (entry_proto.has_uuid()) {
+      entry->uuid = entry_proto.uuid();
+    }
+    if (entry_proto.has_date_unix_epoch_micros()) {
+      entry->created_time = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(entry_proto.date_unix_epoch_micros()));
+    }
+    entry->text = entry_proto.entry_text();
+    if (entry_proto.has_prompt()) {
+      entry->prompt = entry_proto.prompt();
+    }
+    entry->character_type =
+        static_cast<mojom::CharacterType>(entry_proto.character_type());
+    entry->action_type =
+        static_cast<mojom::ActionType>(entry_proto.action_type());
+    if (entry_proto.has_selected_text()) {
+      entry->selected_text = entry_proto.selected_text();
+    }
+    if (entry_proto.has_model_key()) {
+      entry->model_key = entry_proto.model_key();
+    }
+    if (entry_proto.has_editing_entry_uuid()) {
+      // Edits are separate entries referencing their parent. The database
+      // AddConversationEntry handles the editing_entry_uuid parameter.
+    }
+
+    // Convert events
+    std::vector<mojom::ConversationEntryEventPtr> events;
+    for (const auto& event_proto : entry_proto.events()) {
+      if (event_proto.has_completion_text()) {
+        auto completion = mojom::CompletionEvent::New();
+        completion->completion = event_proto.completion_text();
+        events.push_back(mojom::ConversationEntryEvent::NewCompletionEvent(
+            std::move(completion)));
+      } else if (event_proto.has_search_queries()) {
+        auto search = mojom::SearchQueriesEvent::New();
+        search->search_queries =
+            base::SplitString(event_proto.search_queries(), "|||",
+                              base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+        events.push_back(mojom::ConversationEntryEvent::NewSearchQueriesEvent(
+            std::move(search)));
+      } else if (event_proto.has_web_sources_serialized()) {
+        store::WebSourcesEventProto store_proto;
+        if (store_proto.ParseFromString(event_proto.web_sources_serialized())) {
+          events.push_back(mojom::ConversationEntryEvent::NewSourcesEvent(
+              DeserializeWebSourcesEvent(store_proto)));
+        }
+      } else if (event_proto.has_inline_search_serialized()) {
+        store::InlineSearchEventProto store_proto;
+        if (store_proto.ParseFromString(
+                event_proto.inline_search_serialized())) {
+          events.push_back(mojom::ConversationEntryEvent::NewInlineSearchEvent(
+              DeserializeInlineSearchEvent(store_proto)));
+        }
+      } else if (event_proto.has_tool_use_serialized()) {
+        store::ToolUseEventProto store_proto;
+        if (store_proto.ParseFromString(event_proto.tool_use_serialized())) {
+          events.push_back(mojom::ConversationEntryEvent::NewToolUseEvent(
+              DeserializeToolUseEvent(store_proto)));
+        }
+      }
+    }
+    if (!events.empty()) {
+      entry->events = std::move(events);
+    }
+
+    archive->entries.push_back(std::move(entry));
+  }
+
+  return archive;
 }
 
 }  // namespace ai_chat
