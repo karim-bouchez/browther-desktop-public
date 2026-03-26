@@ -327,19 +327,10 @@ class SettingsViewController: TableViewController {
   }()
 
   private lazy var defaultBrowserSection: Static.Section = {
-    var section = Static.Section(
-      rows: [
-        .init(
-          text: Strings.setDefaultBrowserSettingsCell,
-          selection: { [unowned self] in
-            guard let settingsUrl = URL(string: UIApplication.openSettingsURLString) else {
-              return
-            }
-            UIApplication.shared.open(settingsUrl)
-          },
-          cellClass: MultilineButtonCell.self
-        ),
-        .init(
+    let addToDockRows: [Row] =
+      AddToDockEligibility.isEligible
+      ? [
+        Row(
           text: Strings.addToDockSettingsCell,
           selection: { [unowned self] in
             let controller = UIHostingController(
@@ -352,8 +343,24 @@ class SettingsViewController: TableViewController {
             self.present(controller, animated: true)
           },
           cellClass: MultilineButtonCell.self
+        )
+      ]
+      : []
+
+    return Static.Section(
+      rows: [
+        Row(
+          text: Strings.setDefaultBrowserSettingsCell,
+          selection: { [unowned self] in
+            guard let settingsUrl = URL(string: UIApplication.openSettingsURLString) else {
+              return
+            }
+            UIApplication.shared.open(settingsUrl)
+          },
+          cellClass: MultilineButtonCell.self
         ),
-        .init(
+      ] + addToDockRows + [
+        Row(
           text: Strings.importBrowsingDataSettingsMenuTitle,
           selection: { [unowned self] in
             let controller = UIHostingController(
@@ -379,8 +386,6 @@ class SettingsViewController: TableViewController {
         ),
       ]
     )
-
-    return section
   }()
 
   private func setCellEnabled(_ enabled: Bool, rowUUID: UUID, sectionUUID: UUID) {
