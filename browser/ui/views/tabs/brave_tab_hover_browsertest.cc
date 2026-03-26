@@ -24,9 +24,7 @@
 #include "chrome/browser/ui/views/tabs/tab_hover_card_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
-#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "content/public/test/browser_test.h"
@@ -90,48 +88,47 @@ class BraveTabHoverTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(BraveTabHoverTest, ThumbnailHelperIsAlwaysAttached) {
   browser()->profile()->GetPrefs()->SetInteger(brave_tabs::kTabHoverMode,
                                                brave_tabs::TabHoverMode::CARD);
-
-  ASSERT_TRUE(
-      AddTabAtIndex(0, GURL(url::kAboutBlankURL), ui::PAGE_TRANSITION_TYPED));
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("https://card.com"), WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  EXPECT_EQ(GURL("https://card.com"), active_tab()->data().visible_url);
-  EXPECT_TRUE(content::WebContentsUserData<ThumbnailTabHelper>::FromWebContents(
-      contents()));
+  std::vector<TabStrip::AddTabData> data_list;
+  tabs::TabData data;
+  data.visible_url = GURL("https://card.com");
+  data.title = u"Hello World";
+  data_list.push_back({.index = 0, .handle = tabs::TabHandle(0), .data = data});
+  horizontal_tab_strip_for_testing()->AddTabsAt(data_list);
+  horizontal_tab_strip_for_testing()->tab_at(0)->SetDataForTesting(data);
+  EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
+  EXPECT_EQ(data_list[0].data.visible_url, active_tab()->data().visible_url);
+  EXPECT_NE(nullptr,
+            content::WebContentsUserData<ThumbnailTabHelper>::FromWebContents(
+                contents()));
 
   browser()->profile()->GetPrefs()->SetInteger(
       brave_tabs::kTabHoverMode, brave_tabs::TabHoverMode::CARD_WITH_PREVIEW);
-
-  ASSERT_TRUE(
-      AddTabAtIndex(0, GURL(url::kAboutBlankURL), ui::PAGE_TRANSITION_TYPED));
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("https://card-with-preview.com"),
-      WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  EXPECT_EQ(GURL("https://card-with-preview.com"),
-            active_tab()->data().visible_url);
-  EXPECT_TRUE(content::WebContentsUserData<ThumbnailTabHelper>::FromWebContents(
-      contents()));
+  data_list = {};
+  data.visible_url = GURL("https://card-with-preview.com");
+  data.title = u"Foo Bar";
+  data_list.push_back({.index = 0, .handle = tabs::TabHandle(1), .data = data});
+  horizontal_tab_strip_for_testing()->AddTabsAt(data_list);
+  horizontal_tab_strip_for_testing()->tab_at(0)->SetDataForTesting(data);
+  EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
+  EXPECT_EQ(data_list[0].data.visible_url, active_tab()->data().visible_url);
+  EXPECT_NE(nullptr,
+            content::WebContentsUserData<ThumbnailTabHelper>::FromWebContents(
+                contents()));
 
   browser()->profile()->GetPrefs()->SetInteger(
       brave_tabs::kTabHoverMode, brave_tabs::TabHoverMode::TOOLTIP);
 
-  ASSERT_TRUE(
-      AddTabAtIndex(0, GURL(url::kAboutBlankURL), ui::PAGE_TRANSITION_TYPED));
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("https://tooltip.com"),
-      WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  EXPECT_EQ(GURL("https://tooltip.com"), active_tab()->data().visible_url);
-  EXPECT_TRUE(content::WebContentsUserData<ThumbnailTabHelper>::FromWebContents(
-      contents()));
+  data_list = {};
+  data.visible_url = GURL("https://tooltip.com");
+  data.title = u"Baf Baz";
+  data_list.push_back({.index = 0, .handle = tabs::TabHandle(2), .data = data});
+  horizontal_tab_strip_for_testing()->AddTabsAt(data_list);
+  horizontal_tab_strip_for_testing()->tab_at(0)->SetDataForTesting(data);
+  EXPECT_EQ(0, horizontal_tab_strip_for_testing()->GetActiveIndex());
+  EXPECT_EQ(data_list[0].data.visible_url, active_tab()->data().visible_url);
+  EXPECT_NE(nullptr,
+            content::WebContentsUserData<ThumbnailTabHelper>::FromWebContents(
+                contents()));
 }
 
 // This is based on |TabHoverCardBubbleViewBrowserTest|. Unfortunately, all the
