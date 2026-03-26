@@ -26,7 +26,7 @@ jboolean TemplateUrlServiceAndroid::DoesDefaultSearchEngineHaveLogo(
   return DoesDefaultSearchEngineHaveLogo_ChromiumImpl(env);
 }
 
-jboolean TemplateUrlServiceAndroid::Add(
+bool TemplateUrlServiceAndroid::Add(
     JNIEnv* env,
     const base::android::JavaRef<jstring>& search_engine_title,
     const base::android::JavaRef<jstring>& search_engine_keyword,
@@ -43,7 +43,7 @@ jboolean TemplateUrlServiceAndroid::Add(
   return (template_url != nullptr);
 }
 
-jboolean TemplateUrlServiceAndroid::Update(
+bool TemplateUrlServiceAndroid::Update(
     JNIEnv* env,
     const base::android::JavaRef<jstring>& existing_keyword,
     const base::android::JavaRef<jstring>& search_engine_title,
@@ -66,7 +66,7 @@ jboolean TemplateUrlServiceAndroid::Update(
                                        TemplateURL(template_url_data));
 }
 
-jboolean TemplateUrlServiceAndroid::Remove(
+bool TemplateUrlServiceAndroid::Remove(
     JNIEnv* env,
     const base::android::JavaRef<jstring>& search_engine_keyword) {
   const TemplateURL* existing = template_url_service_->GetTemplateURLForKeyword(
