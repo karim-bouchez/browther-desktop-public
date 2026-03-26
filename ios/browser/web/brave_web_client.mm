@@ -18,6 +18,7 @@
 #include "brave/ios/browser/api/profile/profile_bridge_impl.h"
 #include "brave/ios/browser/api/web_view/brave_web_view_internal.h"
 #include "brave/ios/browser/brave_ads/ads_media_reporting_javascript_feature.h"
+#include "brave/ios/browser/brave_search/brave_search_ad_results_javascript_feature.h"
 #include "brave/ios/browser/ui/web_view/features.h"
 #include "brave/ios/browser/web/brave_web_main_parts.h"
 #include "brave/ios/browser/web/de_amp/de_amp_javascript_feature.h"
@@ -124,6 +125,7 @@ std::vector<web::JavaScriptFeature*> BraveWebClient::GetJavaScriptFeatures(
     features.push_back(DeAmpJavaScriptFeature::GetInstance());
     features.push_back(DocumentFetchJavaScriptFeature::GetInstance());
     features.push_back(ForcePasteJavaScriptFeature::GetInstance());
+    features.push_back(BraveSearchAdResultsJavaScriptFeature::GetInstance());
     features.push_back(PageMetadataJavaScriptFeature::GetInstance());
     features.push_back(brave::ReaderModeJavaScriptFeature::GetInstance());
     if (!base::FeatureList::IsEnabled(
