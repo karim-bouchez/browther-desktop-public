@@ -1,0 +1,12 @@
+diff --git a/components/browser_sync/common_controller_builder.cc b/components/browser_sync/common_controller_builder.cc
+index 5b0d799bfc2d41aa32645e72bfc52dc317efb309..832c7b84bed01881ee47729620c9b8de66f4476d 100644
+--- a/components/browser_sync/common_controller_builder.cc
++++ b/components/browser_sync/common_controller_builder.cc
+@@ -1033,6 +1033,7 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
+                 delegate),
+             sync_service, collaboration_service_.value()));
+   }
++  BRAVE_BUILD_SYNC_CONTROLLERS
+ 
+   return controllers;
+ }

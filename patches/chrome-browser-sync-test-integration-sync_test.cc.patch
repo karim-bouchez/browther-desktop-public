@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/sync/test/integration/sync_test.cc b/chrome/browser/sync/test/integration/sync_test.cc
+index 3052a6745f94b34d923b26439da53c852d07b8ad..a3fcc5324a687a6d7fcbd4f12f9685296617c366 100644
+--- a/chrome/browser/sync/test/integration/sync_test.cc
++++ b/chrome/browser/sync/test/integration/sync_test.cc
+@@ -1214,7 +1214,7 @@ std::string SetupSyncModeAsString(SyncTest::SetupSyncMode sync_test_mode) {
+ // enabled by default, e.g. HISTORY requires a dedicated opt-in via
+ // SyncUserSettings::SetSelectedTypes().
+ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
+-  static_assert(61 == syncer::GetNumDataTypes(),
++  static_assert(62 == syncer::GetNumDataTypes(),
+                 "Add new types below if they can run in transport mode");
+ 
+ #if BUILDFLAG(IS_ANDROID)

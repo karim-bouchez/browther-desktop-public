@@ -1,0 +1,91 @@
+diff --git a/components/sync/base/data_type.cc b/components/sync/base/data_type.cc
+index c72b5c493adee3d9ca8c359a55ce3509d5aabefd..59a6521f97f377f71a5086ab07ea44ed08a6cb6a 100644
+--- a/components/sync/base/data_type.cc
++++ b/components/sync/base/data_type.cc
+@@ -16,11 +16,11 @@ namespace syncer {
+ 
+ namespace {
+ 
+-static_assert(61 == syncer::GetNumDataTypes(),
++static_assert(62 == syncer::GetNumDataTypes(),
+               "When adding a new type, update enum SyncDataTypes in enums.xml "
+               "and suffix SyncDataType in histograms.xml.");
+ 
+-static_assert(61 == syncer::GetNumDataTypes(),
++static_assert(62 == syncer::GetNumDataTypes(),
+               "When adding a new type, follow the integration checklist in "
+               "https://www.chromium.org/developers/design-documents/sync/"
+               "integration-checklist/");
+@@ -118,6 +118,8 @@ constexpr kSpecificsFieldNumberToDataTypeMap specifics_field_number2data_type =
+         {sync_pb::EntitySpecifics::kContextualTaskFieldNumber, CONTEXTUAL_TASK},
+         {sync_pb::EntitySpecifics::kSkillFieldNumber, SKILL},
+         {sync_pb::EntitySpecifics::kGeminiThreadFieldNumber, GEMINI_THREAD},
++        {sync_pb::EntitySpecifics::kAiChatConversationFieldNumber,
++         AI_CHAT_CONVERSATION},
+         // ---- Control Types ----
+         {sync_pb::EntitySpecifics::kNigoriFieldNumber, NIGORI},
+     });
+@@ -309,6 +311,9 @@ void AddDefaultFieldValue(DataType type, sync_pb::EntitySpecifics* specifics) {
+     case GEMINI_THREAD:
+       specifics->mutable_gemini_thread();
+       break;
++    case AI_CHAT_CONVERSATION:
++      specifics->mutable_ai_chat_conversation();
++      break;
+   }
+ }
+ 
+@@ -447,6 +452,8 @@ int GetSpecificsFieldNumberFromDataType(DataType data_type) {
+       return sync_pb::EntitySpecifics::kSkillFieldNumber;
+     case GEMINI_THREAD:
+       return sync_pb::EntitySpecifics::kGeminiThreadFieldNumber;
++    case AI_CHAT_CONVERSATION:
++      return sync_pb::EntitySpecifics::kAiChatConversationFieldNumber;
+   }
+   NOTREACHED();
+ }
+@@ -501,7 +508,7 @@ DataTypeSet AlwaysPreferredUserTypes() {
+ }
+ 
+ DataTypeSet EncryptableUserTypes() {
+-  static_assert(61 == syncer::GetNumDataTypes(),
++  static_assert(62 == syncer::GetNumDataTypes(),
+                 "If adding an unencryptable type, remove from "
+                 "encryptable_user_types below.");
+   DataTypeSet encryptable_user_types = UserTypes();
+@@ -674,6 +681,8 @@ const char* DataTypeToDebugString(DataType data_type) {
+       return "Skill";
+     case GEMINI_THREAD:
+       return "Gemini Thread";
++    case AI_CHAT_CONVERSATION:
++      return "AI Chat Conversation";
+   }
+   NOTREACHED();
+ }
+@@ -803,6 +812,8 @@ const char* DataTypeToHistogramSuffix(DataType data_type) {
+       return "SKILL";
+     case GEMINI_THREAD:
+       return "GEMINI_THREAD";
++    case AI_CHAT_CONVERSATION:
++      return "AI_CHAT_CONVERSATION";
+   }
+   // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/histograms.xml:DataTypeHistogramSuffix)
+   NOTREACHED();
+@@ -932,6 +943,8 @@ DataTypeForHistograms DataTypeHistogramValue(DataType data_type) {
+       return DataTypeForHistograms::kSkill;
+     case GEMINI_THREAD:
+       return DataTypeForHistograms::kGeminiThread;
++    case AI_CHAT_CONVERSATION:
++      return DataTypeForHistograms::kAIChatConversation;
+   }
+   NOTREACHED();
+ }
+@@ -1078,6 +1091,8 @@ const char* DataTypeToStableLowerCaseString(DataType data_type) {
+       return "skill";
+     case GEMINI_THREAD:
+       return "gemini_thread";
++    case AI_CHAT_CONVERSATION:
++      return "ai_chat_conversation";
+   }
+   // WARNING: existing strings must not be changed without migration, they
+   // are persisted!

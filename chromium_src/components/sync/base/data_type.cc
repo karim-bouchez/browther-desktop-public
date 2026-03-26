@@ -14,6 +14,7 @@ DataTypeSet EncryptableUserTypes() {
   // Brave sync has encryption setup ready when sync chain created
   encryptable_user_types.Put(DEVICE_INFO);
   encryptable_user_types.Put(HISTORY);
+  encryptable_user_types.Put(AI_CHAT_CONVERSATION);
   return encryptable_user_types;
 }
 

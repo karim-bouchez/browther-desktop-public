@@ -1,0 +1,10 @@
+diff --git a/components/sync/protocol/nigori_specifics.proto b/components/sync/protocol/nigori_specifics.proto
+index 59e1a4d6ee50bdfa6bef1638752e965f0ad8feb4..d090c3034b91329666ffaeab39c149e5e294b8ae 100644
+--- a/components/sync/protocol/nigori_specifics.proto
++++ b/components/sync/protocol/nigori_specifics.proto
+@@ -297,4 +297,5 @@ message NigoriSpecifics {
+   // Current cross user sharing Public-key to expose in server registry
+   // for sharing offers outside account boundary.
+   optional CrossUserSharingPublicKey cross_user_sharing_public_key = 53;
++  optional bool encrypt_ai_chat_conversation = 54;
+ }

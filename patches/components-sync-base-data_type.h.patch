@@ -1,0 +1,35 @@
+diff --git a/components/sync/base/data_type.h b/components/sync/base/data_type.h
+index f5b66d069f47de17363c2fd3a28cd0b26f31cc6e..c4093d2284186eca14fc713b903cac3559ae31ea 100644
+--- a/components/sync/base/data_type.h
++++ b/components/sync/base/data_type.h
+@@ -194,7 +194,10 @@ enum DataType {
+   // A gemini thread.
+   GEMINI_THREAD,
+ 
+-  LAST_USER_DATA_TYPE = GEMINI_THREAD,
++  // Brave: AI Chat conversation history.
++  AI_CHAT_CONVERSATION,
++
++  LAST_USER_DATA_TYPE = AI_CHAT_CONVERSATION,
+ 
+   // ---- Control Types ----
+   // An object representing a set of Nigori keys.
+@@ -301,7 +304,8 @@ enum class DataTypeForHistograms {
+   kAutofillValuableMetadata = 75,
+   kSkill = 76,
+   kGeminiThread = 77,
+-  kMaxValue = kGeminiThread,
++  kAIChatConversation = 78,
++  kMaxValue = kAIChatConversation,
+ };
+ // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncDataTypes)
+ 
+@@ -429,7 +433,7 @@ constexpr DataTypeSet SharedTypes() {
+ // any pending account data or abort, depending on the platform.
+ constexpr DataTypeSet TypesRequiringUnsyncedDataCheckOnSignout() {
+   static_assert(
+-      61 == GetNumDataTypes(),
++      62 == GetNumDataTypes(),
+       "Add new types to `TypesRequiringUnsyncedDataCheckOnSignout()` if there "
+       "should be a warning when the user signs out and the types have unsynced "
+       "data. The warning offers the user to either proceed with sign-out "

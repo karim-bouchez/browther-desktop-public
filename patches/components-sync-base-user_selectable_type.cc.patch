@@ -1,0 +1,38 @@
+diff --git a/components/sync/base/user_selectable_type.cc b/components/sync/base/user_selectable_type.cc
+index 00ae57f885ac29987a442f6e9cb35d20404397a9..0746b4ae283c55ff049abf9c184e15dd60b589be 100644
+--- a/components/sync/base/user_selectable_type.cc
++++ b/components/sync/base/user_selectable_type.cc
+@@ -42,6 +42,7 @@ constexpr char kSavedTabGroupsTypeName[] = "savedTabGroups";
+ constexpr char kPaymentsTypeName[] = "payments";
+ constexpr char kProductComparisonTypeName[] = "productComparison";
+ constexpr char kCookiesTypeName[] = "cookies";
++constexpr char kAIChatTypeName[] = "aiChat";
+ 
+ UserSelectableTypeInfo GetUserSelectableTypeInfo(
+     UserSelectableType type,
+@@ -57,7 +58,7 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
+   // TODO(crbug.com/476335087): In CL #3, map GEMINI_THREAD to an existing
+   // selectable type or to a new one. The first option should be trivial, the
+   // second requires touching UI code across platforms.
+-  static_assert(61 == syncer::GetNumDataTypes(),
++  static_assert(62 == syncer::GetNumDataTypes(),
+                 "Almost always when adding a new Data, you must tie it to "
+                 "a UserSelectableType below (new or existing) so the user can "
+                 "disable syncing of that data. Today you must also update the "
+@@ -154,6 +155,8 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
+           kProductComparisonTypeName, PRODUCT_COMPARISON, {PRODUCT_COMPARISON}};
+     case UserSelectableType::kCookies:
+       return {kCookiesTypeName, COOKIES, {COOKIES}};
++    case UserSelectableType::kAIChat:
++      return {kAIChatTypeName, AI_CHAT_CONVERSATION, {AI_CHAT_CONVERSATION}};
+   }
+   NOTREACHED();
+ }
+@@ -209,6 +212,7 @@ std::optional<UserSelectableType> GetUserSelectableTypeFromString(
+           {kSavedTabGroupsTypeName, UserSelectableType::kSavedTabGroups},
+           {kProductComparisonTypeName, UserSelectableType::kProductComparison},
+           {kCookiesTypeName, UserSelectableType::kCookies},
++          {kAIChatTypeName, UserSelectableType::kAIChat},
+       });
+   if (auto it = kTypeMap.find(type); it != kTypeMap.end()) {
+     return it->second;

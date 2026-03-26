@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/sync/chrome_sync_controller_builder.cc b/chrome/browser/sync/chrome_sync_controller_builder.cc
+index 15bc32942d3ce174f8cb0a041006a85c40134fcf..731b6e100fcf1461860e7b4e1e64655c600db945 100644
+--- a/chrome/browser/sync/chrome_sync_controller_builder.cc
++++ b/chrome/browser/sync/chrome_sync_controller_builder.cc
+@@ -411,6 +411,7 @@ ChromeSyncControllerBuilder::Build(syncer::SyncService* sync_service) {
+               sync_service, pref_service_.value()));
+     }
+ #endif  // BUILDFLAG(IS_CHROMEOS)
++    BRAVE_BUILD_CHROME_SYNC_CONTROLLERS
+ 
+     return controllers;
+ }

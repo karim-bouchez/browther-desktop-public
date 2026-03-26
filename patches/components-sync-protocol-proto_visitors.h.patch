@@ -1,5 +1,5 @@
 diff --git a/components/sync/protocol/proto_visitors.h b/components/sync/protocol/proto_visitors.h
-index 738d2ac9e8526c14714e01224ed75c5937568424..304bee6094fcfcdff5db8fad7665219fb896d6df 100644
+index 738d2ac9e8526c14714e01224ed75c5937568424..7b645115bfb86a3536df87c2e757d88985047c52 100644
 --- a/components/sync/protocol/proto_visitors.h
 +++ b/components/sync/protocol/proto_visitors.h
 @@ -640,6 +640,7 @@ VISIT_PROTO_FIELDS(const sync_pb::DeviceInfoSpecifics& proto) {
@@ -18,3 +18,28 @@ index 738d2ac9e8526c14714e01224ed75c5937568424..304bee6094fcfcdff5db8fad7665219f
  VISIT_PROTO_FIELDS(const sync_pb::SharingSpecificFields& proto) {
    VISIT_REP(enabled_features);
    VISIT(sender_id_fcm_token_v2);
+@@ -736,7 +738,7 @@ VISIT_PROTO_FIELDS(
+ }
+ 
+ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
+-  static_assert(61 == GetNumDataTypes(),
++  static_assert(62 == GetNumDataTypes(),
+                 "When adding a new protocol type, you will likely need to add "
+                 "it here as well.");
+   VISIT(encrypted);
+@@ -802,6 +804,7 @@ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
+   VISIT(contextual_task);
+   VISIT(skill);
+   VISIT(gemini_thread);
++  VISIT(ai_chat_conversation);
+ }
+ 
+ VISIT_PROTO_FIELDS(const sync_pb::ExtensionSettingSpecifics& proto) {
+@@ -984,6 +987,7 @@ VISIT_PROTO_FIELDS(const sync_pb::NigoriSpecifics& proto) {
+   VISIT(custom_passphrase_key_derivation_salt);
+   VISIT(trusted_vault_debug_info);
+   VISIT(cross_user_sharing_public_key);
++  VISIT(encrypt_ai_chat_conversation);
+ }
+ 
+ VISIT_PROTO_FIELDS(const sync_pb::WebauthnCredentialSpecifics& proto) {
