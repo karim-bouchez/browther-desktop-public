@@ -12,9 +12,7 @@
 // Make sure IsUrlEligibleForWebApp also checks for allowed Brave WebUI hosts
 #define IsUrlEligibleForWebApp IsUrlEligibleForWebApp_ChromiumImpl
 
-// Add some extra items to WebUI hosts considered valid for PWAs. Mirrors the
-// same change in components/webapps/browser/banners/app_banner_manager.cc
-// override.
+// Add some extra items to WebUI hosts considered valid for PWAs
 #define BRAVE_WEB_APP_URL_CONFIG_IS_URL_ELIGIBLE_FOR_WEB_APP \
   if (!kInstallablePWAWebUIHosts.contains(url.host()))
 
