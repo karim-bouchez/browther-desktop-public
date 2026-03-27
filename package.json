@@ -1,7 +1,7 @@
 {
-  "name": "brave-core",
+  "name": "browther-desktop",
   "version": "1.90.73",
-  "description": "Brave browser for Android, iOS, Linux, macOS, and Windows",
+  "description": "Browther browser by dev&din — for Android, iOS, Linux, macOS, and Windows",
   "main": "index.js",
   "scripts": {
     "help": "node ./build/commands/scripts/commands.js --help",
@@ -62,7 +62,7 @@
     "url": "git+https://github.com/brave/brave-core.git"
   },
   "author": {
-    "name": "Brave Software <support@brave.com>"
+    "name": "dev&din <contact@devndin.com>"
   },
   "license": "MPL-2.0",
   "bugs": {

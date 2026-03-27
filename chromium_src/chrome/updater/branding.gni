@@ -16,35 +16,35 @@ import("//build/config/chrome_build.gni")
 import("//build/util/branding.gni")
 
 brave_updater_branding = {
-  browser_name = "Brave"
+  browser_name = "Browther"
   browser_product_name = chrome_product_full_name
-  crash_product_name = "BraveUpdater"
+  crash_product_name = "BrowtherUpdater"
   crash_upload_url = "https://cr.brave.com"
   help_center_url = "https://support.brave.app/hc/sections/360003286112"
-  updater_company_full_name = "Brave Software, Inc"
-  updater_company_short_name = "BraveSoftware"
-  updater_company_short_name_uppercase = "BRAVESOFTWARE"
-  updater_copyright = "Copyright 2024 The Brave Authors. All rights reserved."
-  updater_product_full_name = "BraveUpdater"
-  mac_team_identifier = "KL8N8XSYF4"
+  updater_company_full_name = "dev&din"
+  updater_company_short_name = "devndin"
+  updater_company_short_name_uppercase = "DEVNDIN"
+  updater_copyright = "Copyright 2026 dev&din. All rights reserved."
+  updater_product_full_name = "BrowtherUpdater"
+  mac_team_identifier = "U5U7CV74K9"
   grdfile_name = "brave_strings"
 
   # The updater (Omaha 4) is shared between Brave Browser and Brave Origin.
   # It manages multiple applications, so we don't need separate updater
   # installations - just different app registrations within the same updater.
   # The following vars are intentionally the same for both brands:
-  keystone_app_name = "BraveSoftwareUpdate"
-  keystone_bundle_identifier = "com.brave.Keystone"
-  mac_updater_bundle_identifier = "com.brave.BraveUpdater"
-  privileged_helper_bundle_name = "BraveUpdaterPrivilegedHelper"
+  keystone_app_name = "devndinUpdate"
+  keystone_bundle_identifier = "com.devndin.Keystone"
+  mac_updater_bundle_identifier = "com.devndin.BrowtherUpdater"
+  privileged_helper_bundle_name = "BrowtherUpdaterPrivilegedHelper"
   updater_app_icon_path = "//brave/app/theme/brave/mac/app.icns"
 
   # Brave Origin uses a separate browser bundle identifier for side-by-side
   # installation with Brave Browser.
   if (is_brave_origin_branded) {
-    mac_browser_bundle_identifier = "com.brave.Browser.origin"
+    mac_browser_bundle_identifier = "com.devndin.browther.origin"
   } else {
-    mac_browser_bundle_identifier = "com.brave.Browser"
+    mac_browser_bundle_identifier = "com.devndin.browther"
   }
   privileged_helper_name =
       "${mac_browser_bundle_identifier}.UpdaterPrivilegedHelper"
