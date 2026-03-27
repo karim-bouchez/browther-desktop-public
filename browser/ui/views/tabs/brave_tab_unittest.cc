@@ -495,3 +495,27 @@ TEST_F(BraveTabTestWithTreeTab,
   ASSERT_FALSE(tab.showing_close_button_for_test());
   EXPECT_TRUE(tab.tree_toggle_button_->GetVisible());
 }
+
+TEST_F(BraveTabTest, TabMinWidthFloorPixels) {
+  EXPECT_EQ(10, brave_tabs::GetTabMinWidthFloorPixels(
+                    brave_tabs::kTabMinWidthMinimum, 10, 100));
+  EXPECT_EQ(20, brave_tabs::GetTabMinWidthFloorPixels(
+                    brave_tabs::kTabMinWidthMedium, 10, 100));
+  EXPECT_EQ(50, brave_tabs::GetTabMinWidthFloorPixels(
+                    brave_tabs::kTabMinWidthLarge, 10, 100));
+  EXPECT_EQ(100, brave_tabs::GetTabMinWidthFloorPixels(
+                    brave_tabs::kTabMinWidthFull, 10, 100));
+}
+
+TEST_F(BraveTabTest, GetTabSizeInfoFullMinWidthModeUsesStandardWidth) {
+  FakeTabSlotController controller;
+  BraveTab tab(tabs::TabHandle(1), &controller);
+  tab.SetBoundsRect({0, 0, 240, 40});
+  views::test::RunScheduledLayout(&tab);
+
+  const int std_w = tab.tab_style()->GetStandardWidth(false);
+  controller.set_tab_min_width_mode(brave_tabs::kTabMinWidthFull);
+  const TabSizeInfo info = tab.GetTabSizeInfo();
+  EXPECT_EQ(info.min_active_width, std_w);
+  EXPECT_EQ(info.min_inactive_width, std_w);
+}

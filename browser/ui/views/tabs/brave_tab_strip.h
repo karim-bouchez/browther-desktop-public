@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "brave/components/containers/buildflags/buildflags.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "components/prefs/pref_member.h"
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
 #include "brave/browser/ui/containers/container_model.h"
@@ -62,6 +63,7 @@ class BraveTabStrip : public TabStrip {
   std::optional<TabAccentColors> GetTabAccentColors(
       const Tab* tab) const override;
   ui::ImageModel GetTabAccentIcon(const Tab* tab) const override;
+  int GetTabMinWidthMode() const override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ScrollBarMode);
@@ -102,9 +104,11 @@ class BraveTabStrip : public TabStrip {
   BraveVerticalTabStripRegionView* GetVerticalTabStripRegionView() const;
 
   void OnAlwaysHideCloseButtonPrefChanged();
+  void OnTabMinWidthModePrefChanged();
 
   BooleanPrefMember always_hide_close_button_;
   BooleanPrefMember middle_click_close_tab_enabled_;
+  IntegerPrefMember tab_min_width_mode_;
 
   base::WeakPtrFactory<BraveTabStrip> weak_factory_{this};
 };

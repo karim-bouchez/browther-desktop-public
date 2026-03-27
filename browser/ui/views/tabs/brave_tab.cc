@@ -398,12 +398,31 @@ bool BraveTab::IsActive() const {
 }
 
 TabSizeInfo BraveTab::GetTabSizeInfo() const {
-  auto size_info = Tab::GetTabSizeInfo();
-  if (base::FeatureList::IsEnabled(tabs::kBraveScrollableTabStrip)) {
-    // In case horizontal scrollable tab strip is enabled, we can have wider
-    // inactive tabs.
-    size_info.min_inactive_width = tab_style()->GetMinimumActiveWidth(false);
+  if (tabs::utils::ShouldShowBraveVerticalTabs(
+          controller()->GetBrowserWindowInterface())) {
+    return Tab::GetTabSizeInfo();
   }
+
+  auto size_info = Tab::GetTabSizeInfo();
+  const int mode = controller()->GetTabMinWidthMode();
+
+  if (mode == brave_tabs::kTabMinWidthDefault) {
+    if (base::FeatureList::IsEnabled(tabs::kBraveScrollableTabStrip)) {
+      // In case horizontal scrollable tab strip is enabled, we can have wider
+      // inactive tabs.
+      size_info.min_inactive_width = tab_style()->GetMinimumActiveWidth(false);
+    }
+    return size_info;
+  }
+
+  const bool is_split = split().has_value();
+  const int min_active = tab_style()->GetMinimumActiveWidth(is_split);
+  const int std_w = tab_style()->GetStandardWidth(is_split);
+  const int floor =
+      brave_tabs::GetTabMinWidthFloorPixels(mode, min_active, std_w);
+  const int capped = std::min(floor, std_w);
+  size_info.min_active_width = std::max(size_info.min_active_width, capped);
+  size_info.min_inactive_width = std::max(size_info.min_inactive_width, capped);
   return size_info;
 }
 

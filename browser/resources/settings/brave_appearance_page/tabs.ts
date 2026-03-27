@@ -34,6 +34,35 @@ export class SettingsBraveAppearanceTabsElement extends SettingsBraveAppearanceT
 
   static get properties() {
     return {
+      tabMinWidthModes_: {
+        readOnly: true,
+        type: Array,
+        value() {
+          return [
+            {
+              value: 0,
+              name: loadTimeData.getString('appearanceSettingsTabMinWidthMinimum'),
+              hidden: true,
+            },
+            {
+              value: 1,
+              name: loadTimeData.getString('appearanceSettingsTabMinWidthMinimum'),
+            },
+            {
+              value: 2,
+              name: loadTimeData.getString('appearanceSettingsTabMinWidthMedium'),
+            },
+            {
+              value: 3,
+              name: loadTimeData.getString('appearanceSettingsTabMinWidthLarge'),
+            },
+            {
+              value: 4,
+              name: loadTimeData.getString('appearanceSettingsTabMinWidthFull'),
+            },
+          ]
+        },
+      },
       tabTooltipModes_: {
         readyOnly: true,
         type: Array,
@@ -62,6 +91,11 @@ export class SettingsBraveAppearanceTabsElement extends SettingsBraveAppearanceT
     }
   }
 
+  declare private tabMinWidthModes_: Array<{
+    value: number,
+    name: string,
+    hidden?: boolean,
+  }>
   declare private tabTooltipModes_:
       Array<{value: number, name: string}>
   declare private verticalTabsToggleEnabled_: boolean

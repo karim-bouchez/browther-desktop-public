@@ -42,6 +42,24 @@ void RegisterBraveProfilePrefs(PrefRegistrySimple* registry) {
 
   registry->RegisterBooleanPref(kAlwaysHideTabCloseButton, false);
   registry->RegisterBooleanPref(kMiddleClickCloseTabEnabled, true);
+  registry->RegisterIntegerPref(kTabMinWidthMode, kTabMinWidthDefault);
+}
+
+int GetTabMinWidthFloorPixels(int mode,
+                              int min_active_width,
+                              int standard_width) {
+  switch (mode) {
+    case kTabMinWidthMinimum:
+      return min_active_width;
+    case kTabMinWidthMedium:
+      return min_active_width * 2;
+    case kTabMinWidthLarge:
+      return standard_width / 2;
+    case kTabMinWidthFull:
+      return standard_width;
+    default:
+      return min_active_width;
+  }
 }
 
 void MigrateBraveProfilePrefs(PrefService* prefs) {

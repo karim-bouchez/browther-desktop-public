@@ -43,6 +43,24 @@ inline constexpr char kAlwaysHideTabCloseButton[] =
 inline constexpr char kMiddleClickCloseTabEnabled[] =
     "brave.tabs.middle_click_close_tab_enabled";
 
+inline constexpr char kTabMinWidthMode[] = "brave.tabs.min_width_mode";
+
+// Integer values stored in prefs; stable for migration. kDefault is reserved so
+// the product default can change without migrating explicit user choices.
+enum TabMinWidthMode {
+  kTabMinWidthDefault = 0,
+  kTabMinWidthMinimum = 1,
+  kTabMinWidthMedium = 2,
+  kTabMinWidthLarge = 3,
+  kTabMinWidthFull = 4,
+};
+
+// Returns the minimum width floor (DIPs) for modes kMinimum–kFull; values are
+// capped by the caller with `standard_width`. Not used for kTabMinWidthDefault.
+int GetTabMinWidthFloorPixels(int mode,
+                              int min_active_width,
+                              int standard_width);
+
 void RegisterBraveProfilePrefs(PrefRegistrySimple* registry);
 void MigrateBraveProfilePrefs(PrefService* prefs);
 

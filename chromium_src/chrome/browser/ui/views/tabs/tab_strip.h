@@ -33,6 +33,7 @@ class BraveTabHoverCardController;
   std::optional<TabAccentColors> GetTabAccentColors(const Tab* tab)          \
       const override;                                                        \
   ui::ImageModel GetTabAccentIcon(const Tab* tab) const override;            \
+  int GetTabMinWidthMode() const override;                                   \
   int GetTreeHeight(const tree_tab::TreeTabNodeId& id) const override;       \
   const tabs::TreeTabNode* GetTreeTabNode(const tree_tab::TreeTabNodeId& id) \
       const override;                                                        \

@@ -62,8 +62,14 @@ class TreeTabNodeId;
                                        bool collapsed) = 0;               \
   virtual bool IsInCollapsedTreeTabNode(const tree_tab::TreeTabNodeId& id) const
 
+// Brave horizontal tab minimum width mode (see brave_tabs::TabMinWidthMode).
+#define GetStrokeThickness() \
+  GetTabMinWidthMode() const = 0; \
+  virtual int GetStrokeThickness()
+
 #include <chrome/browser/ui/views/tabs/tab_slot_controller.h>  // IWYU pragma: export
 
+#undef GetStrokeThickness
 #undef ShiftGroupRight
 #undef CanPaintThrobberToLayer
 #undef EndDrag

@@ -7,6 +7,10 @@
 
 #include <chrome/browser/ui/views/tabs/fake_tab_slot_controller.cc>
 
+int FakeTabSlotController::GetTabMinWidthMode() const {
+  return tab_min_width_mode_;
+}
+
 bool FakeTabSlotController::ShouldAlwaysHideCloseButton() const {
   return should_always_hide_close_button_;
 }

@@ -104,3 +104,7 @@ bool TabStrip::IsInCollapsedTreeTabNode(
     const tree_tab::TreeTabNodeId& id) const {
   return false;
 }
+
+int TabStrip::GetTabMinWidthMode() const {
+  return 0;
+}
