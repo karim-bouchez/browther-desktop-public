@@ -1,0 +1,115 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:  # Lancement manuel uniquement
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350  # ~6h max (limite GitHub = 360 min)
+
+    steps:
+      - name: Libérer de l'espace disque
+        run: |
+          echo "=== Espace avant nettoyage ==="
+          df -h /
+          # Supprimer les logiciels pré-installés inutiles
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /usr/lib/jvm
+          sudo rm -rf /usr/local/graalvm
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/share/miniconda
+          sudo rm -rf /opt/az
+          sudo rm -rf /opt/microsoft
+          sudo rm -rf /usr/lib/google-cloud-sdk
+          sudo rm -rf /usr/lib/mono
+          sudo rm -rf /usr/share/kotlinc
+          sudo docker image prune --all --force || true
+          sudo apt-get autoremove -y || true
+          sudo apt-get clean || true
+          echo "=== Espace après nettoyage ==="
+          df -h /
+
+      - name: Installer les dépendances système
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git curl wget python3 python3-pip \
+            build-essential ninja-build pkg-config lsb-release \
+            gperf libdrm-dev libcups2-dev libpango1.0-dev \
+            libgtk-3-dev libxss-dev libnss3-dev libgbm-dev
+
+      - name: Installer Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Installer depot_tools
+        run: |
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ~/depot_tools
+          echo "$HOME/depot_tools" >> $GITHUB_PATH
+
+      - name: Checkout browther-core
+        uses: actions/checkout@v4
+        with:
+          path: src/brave
+          fetch-depth: 1
+
+      - name: Configurer le workspace
+        run: |
+          # Créer le workspace comme Brave l'attend
+          cd $GITHUB_WORKSPACE
+          echo "=== Structure workspace ==="
+          ls -la
+          ls -la src/brave/
+
+      - name: Init Android (gclient sync)
+        run: |
+          cd $GITHUB_WORKSPACE/src/brave
+          npm install
+          echo "=== Début npm run init (gclient sync) ==="
+          echo "=== Ceci peut prendre 1-2h ==="
+          npm run init -- --target_os=android --target_arch=arm
+          echo "=== Init terminé ==="
+          df -h /
+
+      - name: Installer les deps build Chromium
+        run: |
+          cd $GITHUB_WORKSPACE/src
+          sudo bash build/install-build-deps.sh --no-prompt --android
+
+      - name: Créer swap (8 GB)
+        run: |
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "=== Mémoire ==="
+          free -h
+          echo "=== Disque ==="
+          df -h /
+
+      - name: Build Android APK
+        run: |
+          cd $GITHUB_WORKSPACE/src/brave
+          echo "=== Début du build Android ==="
+          # -j2 pour limiter la RAM (16 GB runner)
+          npm run build -- --target_os=android --target_arch=arm --ninja -j:2
+          echo "=== Build terminé ==="
+          df -h /
+
+      - name: Trouver et uploader l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: browther-android-apk
+          path: |
+            src/out/android_Component_arm/apks/*.apk
+            src/out/android_Release_arm/apks/*.apk
+          if-no-files-found: warn
+          retention-days: 7
