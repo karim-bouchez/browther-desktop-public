@@ -6,9 +6,9 @@
 
 #include "Base.xcconfig"
 
-MOZ_BUNDLE_DISPLAY_NAME = BraveBeta
+MOZ_BUNDLE_DISPLAY_NAME = BrowtherBeta
 
-BRAVE_URL_SCHEME = brave-beta
+BRAVE_URL_SCHEME = browther-beta
 
 // Bundle Identifier
 MOZ_BUNDLE_ID = $(BASE_BUNDLE_ID).browser.beta

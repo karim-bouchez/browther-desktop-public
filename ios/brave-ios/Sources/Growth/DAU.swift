@@ -77,6 +77,8 @@ public class DAU {
   /// Sends ping to server and returns a boolean whether a timer for the server call was scheduled.
   /// A user needs to be active for a certain amount of time before we ping the server.
   @discardableResult public func sendPingToServer() -> Bool {
+    // Browther: telemetry disabled
+    return false
     defer {
       // Usage ping histograms are recorded reguardless of DAU ping pref, controlled by P3A
       UmaHistogramBoolean("Brave.Core.UsageMonthly", true)

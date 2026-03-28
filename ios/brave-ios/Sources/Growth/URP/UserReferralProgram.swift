@@ -59,6 +59,9 @@ public class UserReferralProgram {
     refCode: String? = nil,
     completion: @escaping (_ refCode: String?, _ offerUrl: String?) -> Void
   ) {
+    // Browther: telemetry disabled
+    completion(nil, nil)
+    return
     let referralBlock: (ReferralData?, UrpError?) -> Void = { [weak self] referral, error in
       guard let self = self else { return }
 
@@ -173,6 +176,8 @@ public class UserReferralProgram {
   }
 
   public func pingIfEnoughTimePassed() {
+    // Browther: telemetry disabled
+    return
     if Reachability.shared.status.connectionType == .offline {
       Logger.module.info("No internet connection, not sending update ping.")
       return

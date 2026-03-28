@@ -58,6 +58,9 @@ struct UrpService {
     refCode: String?,
     completion: @escaping (ReferralData?, UrpError?) -> Void
   ) {
+    // Browther: telemetry disabled
+    completion(nil, nil)
+    return
     guard let stats = braveCoreStats, stats.isStatsReportingEnabled else {
       Logger.module.debug("Stats reporting disabled by the user.")
       completion(nil, .pingDisabledByUser)
@@ -172,6 +175,9 @@ struct UrpService {
     with downloadId: String,
     completion: @escaping (Bool?, UrpError?) -> Void
   ) {
+    // Browther: telemetry disabled
+    completion(nil, nil)
+    return
     guard let stats = braveCoreStats, stats.isStatsReportingEnabled else {
       Logger.module.debug("Stats reporting disabled by the user.")
       completion(nil, .pingDisabledByUser)

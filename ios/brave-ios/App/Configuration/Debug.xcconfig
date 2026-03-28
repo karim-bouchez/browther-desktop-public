@@ -4,9 +4,9 @@
 
 #include "Base.xcconfig"
 
-MOZ_BUNDLE_DISPLAY_NAME = Brave ($(USER))
+MOZ_BUNDLE_DISPLAY_NAME = Browther ($(USER))
 
-BRAVE_URL_SCHEME = brave-debug
+BRAVE_URL_SCHEME = browther-debug
 
 // Bundle Identifier (Same as nightly)
 MOZ_BUNDLE_ID = $(BASE_BUNDLE_ID).BrowserBeta

@@ -7,9 +7,9 @@
 
 #include "Base.xcconfig"
 
-MOZ_BUNDLE_DISPLAY_NAME = Brave Nightly
+MOZ_BUNDLE_DISPLAY_NAME = Browther Nightly
 
-BRAVE_URL_SCHEME = brave-nightly
+BRAVE_URL_SCHEME = browther-nightly
 
 // Bundle Identifier
 MOZ_BUNDLE_ID = $(BASE_BUNDLE_ID).BrowserBeta
