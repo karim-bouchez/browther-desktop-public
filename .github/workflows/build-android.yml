@@ -99,7 +99,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/src/brave
           echo "=== Début du build Android (ninja -j1) ==="
-          npm run build -- --target_os=android --target_arch=arm --no_branding_update --ninja -j:1
+          npm run build -- --target_os=android --target_arch=arm --ninja -j:1
           echo "=== Build terminé ==="
           df -h /
 
