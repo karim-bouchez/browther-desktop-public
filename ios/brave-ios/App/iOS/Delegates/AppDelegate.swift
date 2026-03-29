@@ -69,11 +69,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     AppState.shared.state = .launching(options: launchOptions ?? [:], active: false)
 
+    // Browther: disable Brave features not needed
+    Preferences.Rewards.hideRewardsIcon.value = true
+    Preferences.BraveNews.isEnabled.value = false
+    Preferences.BraveNews.userOptedIn.value = false
+    Preferences.BraveNews.isShowingOptIn.value = false
+    Preferences.BraveSearch.braveSearchPromotionCompletionState.value =
+      BraveSearchPromotionState.dismissed.rawValue
+    Preferences.Wallet.allowEthProviderAccess.value = false
+    Preferences.Wallet.allowSolProviderAccess.value = false
+    Preferences.Wallet.displayWeb3Notifications.value = false
+
     // Set the Safari UA for browsing.
     setUserAgent()
 
-    // Fetching details of GRDRegion for Automatic Region selection
-    BraveVPN.fetchLastUsedRegionDetail()
+    // Browther: VPN disabled (entitlements removed)
+    // BraveVPN.fetchLastUsedRegionDetail()
 
     // Start the keyboard helper to monitor and cache keyboard state.
     KeyboardHelper.defaultHelper.startObserving()
@@ -128,14 +139,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // Run migrations that need access to Data
     Migration.postDataLoadMigration()
 
-    // IAPs can trigger on the app as soon as it launches,
-    // for example when a previous transaction was not finished and is in pending state.
-    SKPaymentQueue.default().add(BraveVPN.iapObserver)
-    // Editing Product Promotion List
-    Task { @MainActor in
-      await BraveVPN.updateStorePromotionOrder()
-      await BraveVPN.hideActiveStorePromotion()
-    }
+    // Browther: VPN disabled
+    // SKPaymentQueue.default().add(BraveVPN.iapObserver)
+    // Task { @MainActor in
+    //   await BraveVPN.updateStorePromotionOrder()
+    //   await BraveVPN.hideActiveStorePromotion()
+    // }
 
     // Override point for customization after application launch.
     var shouldPerformAdditionalDelegateHandling = true
@@ -188,18 +197,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       Preferences.DAU.appRetentionLaunchDate.value = Date()
     }
 
-    // Starting Date for Brave Search Promotion to mark 15 days period
-    if Preferences.BraveSearch.braveSearchPromotionLaunchDate.value == nil {
-      Preferences.BraveSearch.braveSearchPromotionLaunchDate.value = Date()
-    }
-
-    // After user pressed 'maybe later' in promotion, the banner will not be shown user in same session
-    if Preferences.BraveSearch.braveSearchPromotionCompletionState.value
-      == BraveSearchPromotionState.maybeLaterSameSession.rawValue
-    {
-      Preferences.BraveSearch.braveSearchPromotionCompletionState.value =
-        BraveSearchPromotionState.maybeLaterUpcomingSession.rawValue
-    }
+    // Browther: Brave Search promotion disabled
+    // if Preferences.BraveSearch.braveSearchPromotionLaunchDate.value == nil {
+    //   Preferences.BraveSearch.braveSearchPromotionLaunchDate.value = Date()
+    // }
+    // if Preferences.BraveSearch.braveSearchPromotionCompletionState.value
+    //   == BraveSearchPromotionState.maybeLaterSameSession.rawValue
+    // {
+    //   Preferences.BraveSearch.braveSearchPromotionCompletionState.value =
+    //     BraveSearchPromotionState.maybeLaterUpcomingSession.rawValue
+    // }
 
     if isFirstLaunch {
       Preferences.PrivacyReports.ntpOnboardingCompleted.value = false
@@ -310,14 +317,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       }()
     }
 
-    if let installDate = Preferences.P3A.installationDate.value, AppConstants.isOfficialBuild {
-      AppState.shared.braveCore.initializeP3AService(
-        forChannel: AppConstants.buildChannel.serverChannelParam,
-        installationDate: installDate
-      )
-    }
-
-    LanguageMetrics.recordPrimaryLanguageP3A()
+    // Browther: P3A telemetry disabled
+    // if let installDate = Preferences.P3A.installationDate.value, AppConstants.isOfficialBuild {
+    //   AppState.shared.braveCore.initializeP3AService(
+    //     forChannel: AppConstants.buildChannel.serverChannelParam,
+    //     installationDate: installDate
+    //   )
+    // }
+    // LanguageMetrics.recordPrimaryLanguageP3A()
 
     Task(priority: .low) {
       await self.cleanUpLargeTemporaryDirectory()
@@ -357,7 +364,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 
   func applicationWillTerminate(_ application: UIApplication) {
-    SKPaymentQueue.default().remove(BraveVPN.iapObserver)
+    // Browther: VPN disabled
+    // SKPaymentQueue.default().remove(BraveVPN.iapObserver)
 
     // Clean up BraveCore
     AppState.shared.braveCore.profileController?.syncAPI.removeAllObservers()

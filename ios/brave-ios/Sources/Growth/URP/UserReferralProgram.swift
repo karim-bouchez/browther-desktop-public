@@ -176,8 +176,6 @@ public class UserReferralProgram {
   }
 
   public func pingIfEnoughTimePassed() {
-    // Browther: telemetry disabled
-    return
     if Reachability.shared.status.connectionType == .offline {
       Logger.module.info("No internet connection, not sending update ping.")
       return
