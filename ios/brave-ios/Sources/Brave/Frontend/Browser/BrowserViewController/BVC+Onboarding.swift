@@ -304,9 +304,8 @@ extension BrowserViewController {
     if !isDefault {
       steps.insert(.defaultBrowsing, at: 0)
     }
-    if !braveCore.p3aUtils.isP3APreferenceManaged {
-      steps.append(.p3aOptIn)
-    }
+    // Browther: P3A disabled, no analytics consent screen
+    // Will be replaced by Sentry/PostHog consent in Phase 3.5
 
     let controller = OnboardingController(
       environment: .init(

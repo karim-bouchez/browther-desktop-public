@@ -3868,6 +3868,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_ASSET_PATHS = "\"$(PROJECT_DIR)/../Sources/Brave/Frontend/PreviewContent\"";
+				DEVELOPMENT_TEAM = U5U7CV74K9;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				INFOPLIST_FILE = iOS/SupportingFiles/Info.plist;
 				PRODUCT_MODULE_NAME = Client;

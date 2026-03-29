@@ -56,24 +56,8 @@ extension BrowserViewController {
   // MARK: Conditional Callout Methods
 
   private func presentP3AScreenCallout() {
-    if braveCore.p3aUtils.isP3APreferenceManaged {
-      return
-    }
-
-    let controller = OnboardingController(
-      environment: .init(
-        p3aUtils: braveCore.p3aUtils,
-        attributionManager: attributionManager
-      ),
-      steps: [.p3aOptIn],
-      showSplashScreen: false,
-      showDismissButton: false
-    ).then {
-      $0.isModalInPresentation = true
-      $0.modalPresentationStyle = .overFullScreen
-    }
-
-    present(controller, animated: true)
+    // Browther: P3A disabled, skip this callout entirely
+    return
   }
 
   private func presentBottomBarCallout(skipSafeGuards: Bool = false) {
