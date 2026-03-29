@@ -12,7 +12,7 @@ jobs:
       - name: Libérer de l'espace disque
         run: |
           echo "=== Espace avant nettoyage ==="
-          df -h /
+          df -h / /mnt
           # Supprimer les logiciels pré-installés inutiles
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
@@ -34,8 +34,11 @@ jobs:
           sudo docker image prune --all --force || true
           sudo apt-get autoremove -y || true
           sudo apt-get clean || true
+          # Supprimer le swap pré-existant pour gagner de l'espace disque
+          sudo swapoff -a || true
+          sudo rm -f /swapfile /mnt/swapfile || true
           echo "=== Espace après nettoyage ==="
-          df -h /
+          df -h / /mnt
 
       - name: Installer les dépendances système
         run: |
@@ -63,7 +66,6 @@ jobs:
 
       - name: Configurer le workspace
         run: |
-          # Créer le workspace comme Brave l'attend
           cd $GITHUB_WORKSPACE
           echo "=== Structure workspace ==="
           ls -la
@@ -74,35 +76,30 @@ jobs:
           cd $GITHUB_WORKSPACE/src/brave
           npm install
           echo "=== Début npm run init (gclient sync) ==="
-          echo "=== Ceci peut prendre 1-2h ==="
           npm run init -- --target_os=android --target_arch=arm
           echo "=== Init terminé ==="
-          df -h /
+          echo "=== Espace disque restant ==="
+          df -h / /mnt
 
       - name: Installer les deps build Chromium
         run: |
           cd $GITHUB_WORKSPACE/src
           sudo bash build/install-build-deps.sh --no-prompt --android
 
-      - name: Créer swap (8 GB)
+      - name: Vérifier les ressources avant build
         run: |
-          sudo swapoff /swapfile 2>/dev/null || true
-          sudo rm -f /swapfile
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
           echo "=== Mémoire ==="
           free -h
           echo "=== Disque ==="
-          df -h /
+          df -h / /mnt
+          echo "=== CPU ==="
+          nproc
 
       - name: Build Android APK
         run: |
           cd $GITHUB_WORKSPACE/src/brave
-          echo "=== Début du build Android ==="
-          # -j2 pour limiter la RAM (16 GB runner)
-          npm run build -- --target_os=android --target_arch=arm --ninja -j:2
+          echo "=== Début du build Android (ninja -j1) ==="
+          npm run build -- --target_os=android --target_arch=arm --no_branding_update --ninja -j:1
           echo "=== Build terminé ==="
           df -h /
 
